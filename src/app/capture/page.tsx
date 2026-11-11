@@ -97,10 +97,16 @@ function CapturePageInner() {
   );
 }
 
+function CapturePageWithUrlMode() {
+  const params = useSearchParams();
+  const key = `${params.get("mode") ?? ""}:${params.get("classification") ?? ""}`;
+  return <CapturePageInner key={key} />;
+}
+
 export default function CapturePage() {
   return (
     <Suspense fallback={<div className="card p-8 text-center">撮影画面を準備しています…</div>}>
-      <CapturePageInner />
+      <CapturePageWithUrlMode />
     </Suspense>
   );
 }

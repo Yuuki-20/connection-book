@@ -194,7 +194,7 @@ export function CaptureWizard(props: { captureMode?: "quick" | "important" | "co
         const supabase = createClient(); const { data: { session } } = await supabase.auth.getSession();
         if (!session) throw new Error("ログインし直してください。");
         const template=settings.data?.templates.find(x=>x.is_default);if(!template)throw new Error("CRM登録は完了しましたが、デフォルトのメールテンプレートが未設定のためGmail下書きを作成できません。");const draftBody = renderTemplate(template.default_body, { recipient_name: contact.name, sender_signature: context.data?.member.signature??"" });
-        const response = await fetch("/api/gmail/draft", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` }, body: JSON.stringify({ contactId: id, recipientEmail: contact.email, subject: template.default_subject, body: draftBody }) });
+        const response = await fetch("/api/gmail/draft", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` }, body: JSON.stringify({ quickMode, contactId: id, recipientEmail: contact.email, subject: template.default_subject, body: draftBody }) });
         if (!response.ok) throw new Error("CRMへ登録しましたが、Gmail下書きを作成できませんでした。");
       }
     } catch (cause) { setError(cause instanceof Error ? cause.message : "CRMへ登録できませんでした。");setSaving(false); return; }
@@ -205,6 +205,7 @@ export function CaptureWizard(props: { captureMode?: "quick" | "important" | "co
   }
 
   async function send() {
+    if (quickMode) return;
     if(sending)return;
     if (!navigator.onLine) { setError("オフラインでは送信できません。通信を確認してください。"); return; }
     if (!contactId) { setError("送信前のCRM登録が完了していません。"); return; }
@@ -242,8 +243,8 @@ export function CaptureWizard(props: { captureMode?: "quick" | "important" | "co
         />
     )}
     {step === "duplicate" && <DuplicateStep contact={contact} duplicates={duplicates} mergeChoice={mergeChoice} setMergeChoice={(value)=>{setMergeChoice(value);setError("")}} askReason={Boolean(strongDuplicate)&&classification==="courtesy"&&!quickMode} reason={overrideReason} saving={saving} error={error} setReason={setOverrideReason} onBack={() => setStep("verify")} onContinue={continueAfterDuplicate}/>}
-    {step === "mail" && mailNotice && <p className="mb-3 rounded-xl border border-[#e8c98a] bg-[#fff8e6] p-3 text-sm font-bold text-[#7a5200]">{mailNotice}</p>}
-    {step === "mail" && <MailStep contact={contact} sender={senderView} senderChoices={senderChoices?{value:senderChoice,onChange:setSenderChoice,organization:senderChoices.organization_email.email,personal:senderChoices.personal_email.email}:null} onRetrySender={()=>void settings.reload()} ccInput={ccInput} setCcInput={setCcInput} finalCc={finalCc} bccInput={bccInput} setBccInput={setBccInput} templateName={settings.data?.templates.find(x=>x.is_default)?.name??"未設定"} signature={settings.data?.member.signature??context.data?.member.signature??""} canDisableOrganizationCc={Boolean(settings.data?.member.access_role==="member"&&settings.data.mailSettings.auto_cc_organization_email&&settings.data.mailSettings.allow_member_to_disable_cc)} disableOrganizationCc={disableOrganizationCc} setDisableOrganizationCc={setDisableOrganizationCc} subject={subject} setSubject={setSubject} body={body} setBody={setBody} confirmed={confirmed} setConfirmed={setConfirmed} error={error} sending={sending} onBack={() => setStep("verify")} onSend={send}/>}
+    {!quickMode && step === "mail" && mailNotice && <p className="mb-3 rounded-xl border border-[#e8c98a] bg-[#fff8e6] p-3 text-sm font-bold text-[#7a5200]">{mailNotice}</p>}
+    {!quickMode && step === "mail" && <MailStep contact={contact} sender={senderView} senderChoices={senderChoices?{value:senderChoice,onChange:setSenderChoice,organization:senderChoices.organization_email.email,personal:senderChoices.personal_email.email}:null} onRetrySender={()=>void settings.reload()} ccInput={ccInput} setCcInput={setCcInput} finalCc={finalCc} bccInput={bccInput} setBccInput={setBccInput} templateName={settings.data?.templates.find(x=>x.is_default)?.name??"未設定"} signature={settings.data?.member.signature??context.data?.member.signature??""} canDisableOrganizationCc={Boolean(settings.data?.member.access_role==="member"&&settings.data.mailSettings.auto_cc_organization_email&&settings.data.mailSettings.allow_member_to_disable_cc)} disableOrganizationCc={disableOrganizationCc} setDisableOrganizationCc={setDisableOrganizationCc} subject={subject} setSubject={setSubject} body={body} setBody={setBody} confirmed={confirmed} setConfirmed={setConfirmed} error={error} sending={sending} onBack={() => setStep("verify")} onSend={send}/>}
     {step === "done" && <DoneStep classification={classification} contactId={contactId} quickMode={quickMode} onRestart={props.onRestart}/>}
   </div>;
 }
@@ -348,7 +349,7 @@ function emailsFromInput(value:string){return [...new Set(value.split(/[;,\n]/).
 function DoneStep({ classification, contactId, quickMode, onRestart }: { classification: Exclude<Classification,"no_contact">; contactId:string; quickMode: boolean; onRestart?: () => void }) {
   return <section className="card p-8 text-center">
     <span className="mx-auto grid size-16 place-items-center rounded-full bg-[#e2f2e8] text-[#176b45]"><Check size={30}/></span>
-    <h2 className="mt-4 text-2xl font-black">{quickMode ? "記録しました" : "処理を完了しました"}</h2>
+    <h2 className="mt-4 text-2xl font-black">{quickMode ? "保存しました" : "処理を完了しました"}</h2>
     <p className="mt-2 text-sm text-[#69756d]">{quickMode
       ? "名刺を記録しました。分類やメール送信は人物詳細からいつでも行えます。"
       : classification === "important" ? "要手動対応として記録し、下書きを作成しました。自動送信はしていません。"
