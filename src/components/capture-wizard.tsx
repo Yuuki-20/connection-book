@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { AlertTriangle, ArrowLeft, Camera, Check, ChevronRight, FilePenLine, LoaderCircle, Mail, Pencil, Save, ScanSearch, ShieldCheck, UserRoundCheck, X, Zap } from "lucide-react";
 import { Classification, ContactInput, contactSchema, quickContactSchema, DuplicateCandidate, MergeMode, renderTemplate } from "@/lib/domain";
+import { buildOcrFeedback } from "@/lib/ocr-feedback";
 import { EmailCandidate, tesseractProvider } from "@/lib/ocr";
 import { cropImageRegion, NormalizedRect, preprocessBusinessCardImage, rotateImage } from "@/lib/image-processing";
 import { createClient } from "@/lib/supabase/browser";
@@ -31,6 +32,7 @@ export function CaptureWizard(props: { captureMode?: "quick" | "important" | "co
   const debugOcr = process.env.NODE_ENV !== "production" || (process.env.NEXT_PUBLIC_ENABLE_OCR_DEBUG === "true" && params.get("debug") === "ocr");
   const [step, setStep] = useState<Step>("capture");
   const [contact, setContact] = useState<ContactInput>(blank);
+  const [ocrBaseline, setOcrBaseline] = useState<Partial<ContactInput> | null>(null);
   const [mailNotice, setMailNotice] = useState("");
   const [emailCandidates, setEmailCandidates] = useState<EmailCandidate[]>([]);
   const [rawText, setRawText] = useState("");
@@ -82,6 +84,7 @@ export function CaptureWizard(props: { captureMode?: "quick" | "important" | "co
     setOcrProgress(0);
     const result = await tesseractProvider.recognize(blob, ({ progress }) => setOcrProgress(Math.round(progress * 100)));
     setRawText(result.rawText);
+    setOcrBaseline({ ...result.fields, email: result.emailCandidates[0]?.value ?? "" });
     setEmailCandidates(result.emailCandidates);
     setManualEmail(false);
     setContact((current) => ({ ...current, ...result.fields, email: "" }));
@@ -101,6 +104,7 @@ export function CaptureWizard(props: { captureMode?: "quick" | "important" | "co
     if (!file) return;
     if (!file.type.startsWith("image/") || file.size > 10 * 1024 * 1024) { setError("画像を1枚、10MB以下で選択してください。"); return; }
     setError("");
+    setOcrBaseline(null);
     setOcrProgress(0);
     try {
       const prepared = await preprocessBusinessCardImage(file);
@@ -174,6 +178,12 @@ export function CaptureWizard(props: { captureMode?: "quick" | "important" | "co
     const form=new FormData();const file=new File([ocrImage],`business-card-${Date.now()}.jpg`,{type:ocrImage.type||"image/jpeg"});
     form.set("image",file);form.set("metadata",JSON.stringify({contact,classification,eventId:context.data?.currentEvent?.id??null,rawText,ocrCorrected:emailCandidates.some(x=>x.source==="corrected"),imageSha256:await sha256Hex(ocrImage),quickMode,merge:mergeChoice&&mergeChoice!=="new"?mergeChoice:null}));
     const result=await appFetch<{contactId:string;contact?:{email:string|null;classification:string}|null;statuses:{drive:string;people:string}}>("/api/contacts/register",{method:"POST",body:form});
+    if (ocrBaseline) {
+      try {
+        const parsed = (quickMode ? quickContactSchema : contactSchema).parse(contact);
+        void appFetch("/api/ocr-feedback", { method: "POST", body: JSON.stringify({ items: buildOcrFeedback(ocrBaseline, parsed) }) }).catch(() => {});
+      } catch { /* 統計の失敗は名刺の保存に影響させない */ }
+    }
     // 既存の人物に「併記」した場合、登録済みのアドレスは変わらない。お礼はこの名刺のアドレスに送ることを案内する。
     const storedEmail=result.contact?.email?.trim().toLowerCase()??"";
     if(storedEmail&&storedEmail!==contact.email.trim().toLowerCase())setMailNotice(`この人の登録済みのアドレス（${storedEmail}）はそのまま残し、お礼メールはこの名刺のアドレス（${contact.email.trim()}）に送ります。`);
