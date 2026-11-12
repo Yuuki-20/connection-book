@@ -14,6 +14,7 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Vendored Tesseract worker/core assets are generated third-party code.
     "public/tesseract/**",
+    "public/ort/**",
   ]),
 ]);
 
