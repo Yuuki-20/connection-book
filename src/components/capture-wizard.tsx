@@ -33,6 +33,7 @@ export function CaptureWizard(props: { captureMode?: "quick" | "important" | "co
   const [step, setStep] = useState<Step>("capture");
   const [newOcr, setNewOcr] = useState(false);
   const [usedNewOcr, setUsedNewOcr] = useState(false);
+  const [ocrNote, setOcrNote] = useState("");
   useEffect(() => { try { setTimeout(() => setNewOcr(localStorage.getItem("connection-book-gemini-ocr") === "true"), 0); } catch {} }, []);
   function changeNewOcr(value: boolean) { setNewOcr(value); try { localStorage.setItem("connection-book-gemini-ocr", String(value)); } catch {} }
   const [contact, setContact] = useState<ContactInput>(blank);
@@ -85,6 +86,7 @@ export function CaptureWizard(props: { captureMode?: "quick" | "important" | "co
 
   async function runOcr(blob: Blob, original?: Blob) {
     setOcrProgress(0);
+    setOcrNote("");
     let result;
     let used = false;
     if (newOcr) {
@@ -93,10 +95,10 @@ export function CaptureWizard(props: { captureMode?: "quick" | "important" | "co
         const form = new FormData();
         form.append("image", original && original.size <= 8 * 1024 * 1024 && /^image\/(jpeg|png|webp|heic)$/.test(original.type) ? original : blob, "card.jpg");
         const response = await fetch("/api/ocr/gemini", { method: "POST", body: form });
-        if (!response.ok) throw new Error("Gemini unavailable");
+        if (!response.ok) { const body = await response.json().catch(() => ({})); throw new Error(`${response.status} ${body.error ?? ""} ${body.detail ?? ""}`.trim()); }
         result = geminiToOcrResult(parseGeminiFields(await response.json()));
         used = true;
-      } catch { /* 従来の読み取りに切り替える */ }
+      } catch (cause) { setOcrNote(`AI読み取りに失敗したため、従来の読み取りを使いました（${cause instanceof Error ? cause.message : "不明"}）`); }
     }
     result ??= await tesseractProvider.recognize(blob, ({ progress }) => setOcrProgress(Math.round(progress * 100)));
     setUsedNewOcr(used);
@@ -246,6 +248,7 @@ export function CaptureWizard(props: { captureMode?: "quick" | "important" | "co
     {quickMode ? <QuickSteps step={step}/> : <Steps step={step}/>}
     {step === "capture" && <label className="mb-4 flex items-center gap-2 text-sm"><input type="checkbox" checked={newOcr} onChange={event => changeNewOcr(event.target.checked)}/>AIで読み取り（Gemini・試験）</label>}
     {step === "verify" && usedNewOcr && <p className="mb-3 text-xs text-[#69756d]">AI（Gemini）で読み取りました</p>}
+    {step === "verify" && !usedNewOcr && ocrNote && <p className="mb-3 text-xs text-[#9a3b2f]">{ocrNote}</p>}
     {step === "capture" && <CaptureStep progress={ocrProgress} error={error} onFile={onFile} quickMode={quickMode}/>}
     {step === "verify" && (quickMode
       ? <QuickVerifyStep
