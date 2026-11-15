@@ -6,9 +6,9 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { AlertTriangle, ArrowLeft, Camera, Check, ChevronRight, FilePenLine, LoaderCircle, Mail, Pencil, Save, ScanSearch, ShieldCheck, UserRoundCheck, X, Zap } from "lucide-react";
 import { Classification, ContactInput, contactSchema, quickContactSchema, DuplicateCandidate, MergeMode, renderTemplate } from "@/lib/domain";
-import { EmailCandidate, tesseractProvider } from "@/lib/ocr";
+import { EmailCandidate } from "@/lib/ocr";
 import { geminiToOcrResult, parseGeminiFields } from "@/lib/gemini-ocr";
-import { cropImageRegion, NormalizedRect, preprocessBusinessCardImage, rotateImage } from "@/lib/image-processing";
+import { cropImageRegion, NormalizedRect, prepareColorImage, rotateImage } from "@/lib/image-processing";
 import { createClient } from "@/lib/supabase/browser";
 import { appFetch, sha256Hex } from "@/lib/client-api";
 import { createClientId } from "@/lib/client-crypto";
@@ -31,11 +31,8 @@ export function CaptureWizard(props: { captureMode?: "quick" | "important" | "co
   const classification: Exclude<Classification, "no_contact"> = quickMode ? "undecided" : (param === "important" ? "important" : "courtesy");
   const debugOcr = process.env.NODE_ENV !== "production" || (process.env.NEXT_PUBLIC_ENABLE_OCR_DEBUG === "true" && params.get("debug") === "ocr");
   const [step, setStep] = useState<Step>("capture");
-  const [newOcr, setNewOcr] = useState(false);
   const [usedNewOcr, setUsedNewOcr] = useState(false);
   const [ocrNote, setOcrNote] = useState("");
-  useEffect(() => { try { setTimeout(() => setNewOcr(localStorage.getItem("connection-book-gemini-ocr") === "true"), 0); } catch {} }, []);
-  function changeNewOcr(value: boolean) { setNewOcr(value); try { localStorage.setItem("connection-book-gemini-ocr", String(value)); } catch {} }
   const [contact, setContact] = useState<ContactInput>(blank);
   const [mailNotice, setMailNotice] = useState("");
   const [emailCandidates, setEmailCandidates] = useState<EmailCandidate[]>([]);
@@ -84,23 +81,28 @@ export function CaptureWizard(props: { captureMode?: "quick" | "important" | "co
     setImage((current) => { if (current) URL.revokeObjectURL(current); return URL.createObjectURL(blob); });
   }
 
-  async function runOcr(blob: Blob, original?: Blob) {
+  async function readWithGemini(blob: Blob) {
+    const form = new FormData();
+    form.append("image", blob, "card.jpg");
+    const response = await fetch("/api/ocr/gemini", { method: "POST", body: form });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(`${response.status} ${body.error ?? ""} ${body.detail ?? ""}`.trim());
+    return { result: geminiToOcrResult(parseGeminiFields(body)), model: typeof body.model === "string" ? body.model : "" };
+  }
+
+  async function runOcr(blob: Blob) {
     setOcrProgress(0);
     setOcrNote("");
     let result;
     let used = false;
-    if (newOcr) {
-      try {
-        if ("caches" in window) void Promise.all([caches.delete("card-ocr-v1"), caches.delete("card-ocr-v2")]).catch(() => {});
-        const form = new FormData();
-        form.append("image", original && original.size <= 8 * 1024 * 1024 && /^image\/(jpeg|png|webp|heic)$/.test(original.type) ? original : blob, "card.jpg");
-        const response = await fetch("/api/ocr/gemini", { method: "POST", body: form });
-        if (!response.ok) { const body = await response.json().catch(() => ({})); throw new Error(`${response.status} ${body.error ?? ""} ${body.detail ?? ""}`.trim()); }
-        result = geminiToOcrResult(parseGeminiFields(await response.json()));
-        used = true;
-      } catch (cause) { setOcrNote(`AI読み取りに失敗したため、従来の読み取りを使いました（${cause instanceof Error ? cause.message : "不明"}）`); }
+    try {
+      if ("caches" in window) void Promise.all([caches.delete("card-ocr-v1"), caches.delete("card-ocr-v2")]).catch(() => {});
+      const read = await readWithGemini(blob);
+      result = read.result; used = true; setOcrNote(read.model);
+    } catch (cause) {
+      setOcrNote(`AI（Gemini）で読み取れませんでした（${cause instanceof Error ? cause.message : "不明"}）。撮り直すか、手入力してください。`);
+      result = { rawText: "", normalizedText: "", fields: {}, emailCandidates: [] };
     }
-    result ??= await tesseractProvider.recognize(blob, ({ progress }) => setOcrProgress(Math.round(progress * 100)));
     setUsedNewOcr(used);
     setRawText(result.rawText);
     setEmailCandidates(result.emailCandidates);
@@ -124,9 +126,9 @@ export function CaptureWizard(props: { captureMode?: "quick" | "important" | "co
     setError("");
     setOcrProgress(0);
     try {
-      const prepared = await preprocessBusinessCardImage(file);
+      const prepared = await prepareColorImage(file);
       setOcrImage(prepared); updatePreview(prepared);
-      await runOcr(prepared, file); setStep("verify");
+      await runOcr(prepared); setStep("verify");
     } catch (cause) {
       console.error("Business card OCR failed", cause);
       const diagnostic = process.env.NODE_ENV !== "production" ? `（開発用詳細: ${cause instanceof Error ? cause.message : String(cause)}）` : "";
@@ -141,8 +143,7 @@ export function CaptureWizard(props: { captureMode?: "quick" | "important" | "co
     setError(""); setOcrProgress(0);
     try {
       const cropped = await cropImageRegion(ocrImage, region);
-      const result = await tesseractProvider.recognize(cropped, ({ progress }) => setOcrProgress(Math.round(progress * 100)));
-      setRawText((current) => `${current}\n\n--- EMAIL REGION OCR ---\n${result.rawText}`.trim());
+      const { result } = await readWithGemini(cropped);
       setEmailCandidates(result.emailCandidates); setContact((current) => ({ ...current, email: "" }));
       setManualEmail(result.emailCandidates.length === 0); setSelectingRegion(false);
       setError(result.emailCandidates.length === 0 ? "指定範囲からもメールアドレスを読み取れませんでした。手入力してください。" : "");
@@ -246,8 +247,7 @@ export function CaptureWizard(props: { captureMode?: "quick" | "important" | "co
   return <div className="mx-auto max-w-3xl">
     <Header classification={classification} quickMode={quickMode}/>
     {quickMode ? <QuickSteps step={step}/> : <Steps step={step}/>}
-    {step === "capture" && <label className="mb-4 flex items-center gap-2 text-sm"><input type="checkbox" checked={newOcr} onChange={event => changeNewOcr(event.target.checked)}/>AIで読み取り（Gemini・試験）</label>}
-    {step === "verify" && usedNewOcr && <p className="mb-3 text-xs text-[#69756d]">AI（Gemini）で読み取りました</p>}
+    {step === "verify" && usedNewOcr && <p className="mb-3 text-xs text-[#69756d]">AI（Gemini{ocrNote ? `・${ocrNote}` : ""}）で読み取りました</p>}
     {step === "verify" && !usedNewOcr && ocrNote && <p className="mb-3 text-xs text-[#9a3b2f]">{ocrNote}</p>}
     {step === "capture" && <CaptureStep progress={ocrProgress} error={error} onFile={onFile} quickMode={quickMode}/>}
     {step === "verify" && (quickMode
