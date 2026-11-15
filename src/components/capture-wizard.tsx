@@ -83,7 +83,7 @@ export function CaptureWizard(props: { captureMode?: "quick" | "important" | "co
     setImage((current) => { if (current) URL.revokeObjectURL(current); return URL.createObjectURL(blob); });
   }
 
-  async function runOcr(blob: Blob) {
+  async function runOcr(blob: Blob, original?: Blob) {
     setOcrProgress(0);
     let result;
     let used = false;
@@ -91,7 +91,7 @@ export function CaptureWizard(props: { captureMode?: "quick" | "important" | "co
       try {
         if ("caches" in window) void Promise.all([caches.delete("card-ocr-v1"), caches.delete("card-ocr-v2")]).catch(() => {});
         const form = new FormData();
-        form.append("image", blob, "card.jpg");
+        form.append("image", original && original.size <= 8 * 1024 * 1024 && /^image\/(jpeg|png|webp|heic)$/.test(original.type) ? original : blob, "card.jpg");
         const response = await fetch("/api/ocr/gemini", { method: "POST", body: form });
         if (!response.ok) throw new Error("Gemini unavailable");
         result = geminiToOcrResult(parseGeminiFields(await response.json()));
@@ -124,7 +124,7 @@ export function CaptureWizard(props: { captureMode?: "quick" | "important" | "co
     try {
       const prepared = await preprocessBusinessCardImage(file);
       setOcrImage(prepared); updatePreview(prepared);
-      await runOcr(prepared); setStep("verify");
+      await runOcr(prepared, file); setStep("verify");
     } catch (cause) {
       console.error("Business card OCR failed", cause);
       const diagnostic = process.env.NODE_ENV !== "production" ? `（開発用詳細: ${cause instanceof Error ? cause.message : String(cause)}）` : "";
