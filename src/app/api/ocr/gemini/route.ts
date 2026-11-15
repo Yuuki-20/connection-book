@@ -38,6 +38,7 @@ export async function POST(request: Request) {
       "書かれていない項目は空文字。推測で補ったり、別の項目の文字を入れたりしない。",
     ].join("\n");
     let text: string | undefined;
+    let usedModel = "";
     const failures: string[] = [];
     const schema = { type: "OBJECT", properties: Object.fromEntries(geminiFields.map((field) => [field, { type: "STRING" }])), required: geminiFields };
     for (const model of models) {
@@ -55,13 +56,13 @@ export async function POST(request: Request) {
         }
         const data = await response.json();
         text = data.candidates?.[0]?.content?.parts?.find((part: { text?: string }) => typeof part.text === "string")?.text;
-        if (!text) failures.push(`${model}:empty`);
+        if (!text) failures.push(`${model}:empty`); else usedModel = model;
         break;
       }
       if (text) break;
     }
     if (!text) return Response.json({ error: "gemini_failed", detail: failures.join(",") }, { status: 502 });
-    return Response.json(parseGeminiFields(JSON.parse(text)));
+    return Response.json({ ...parseGeminiFields(JSON.parse(text)), model: usedModel });
   } catch (error) {
     if (error instanceof Response) return error;
     return Response.json({ error: "gemini_failed", detail: error instanceof Error ? error.name : "unknown" }, { status: 502 });

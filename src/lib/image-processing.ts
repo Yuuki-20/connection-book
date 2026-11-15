@@ -36,6 +36,23 @@ async function orientedBitmap(source: Blob): Promise<DecodedImage> {
   }
 }
 
+// Gemini 用：色はそのまま、長辺 2000px までに縮めて JPEG にする（HEIC などもブラウザで読めればここで JPEG になる）。
+export async function prepareColorImage(source: Blob) {
+  const bitmap = await orientedBitmap(source);
+  const longSide = Math.max(bitmap.width, bitmap.height);
+  const scale = Math.min(1, 2000 / longSide);
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(bitmap.width * scale);
+  canvas.height = Math.round(bitmap.height * scale);
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("画像処理を初期化できませんでした");
+  context.imageSmoothingEnabled = true;
+  context.imageSmoothingQuality = "high";
+  context.drawImage(bitmap.source, 0, 0, canvas.width, canvas.height);
+  bitmap.close();
+  return canvasToBlob(canvas, "image/jpeg", 0.92);
+}
+
 export async function preprocessBusinessCardImage(source: Blob) {
   const bitmap = await orientedBitmap(source);
   const minimumLongSide = 1800;
