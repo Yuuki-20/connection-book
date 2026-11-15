@@ -34,7 +34,7 @@ describe("Gemini OCR", () => {
   it("returns 502 for invalid Gemini responses", async () => {
     process.env.GEMINI_API_KEY = "test-key";
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json({ candidates: [] })));
-    const response = await POST(request()); expect(response.status).toBe(502); expect(await response.json()).toEqual({ error: "gemini_failed" });
+    const response = await POST(request()); expect(response.status).toBe(502); expect(await response.json()).toMatchObject({ error: "gemini_failed" });
   });
   it("limits each member to ten requests per minute", async () => {
     auth.requireMember.mockResolvedValue({ member: { id: crypto.randomUUID() } });

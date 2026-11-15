@@ -38,20 +38,32 @@ export async function POST(request: Request) {
       "書かれていない項目は空文字。推測で補ったり、別の項目の文字を入れたりしない。",
     ].join("\n");
     let text: string | undefined;
+    const failures: string[] = [];
+    const schema = { type: "OBJECT", properties: Object.fromEntries(geminiFields.map((field) => [field, { type: "STRING" }])), required: geminiFields };
     for (const model of models) {
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
-        method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": key }, signal: AbortSignal.timeout(25_000),
-        body: JSON.stringify({ contents: [{ parts: [{ inline_data: { mime_type: image.type, data: imageData } }, { text: prompt }] }], generationConfig: { temperature: 0, mediaResolution: "MEDIA_RESOLUTION_HIGH", responseMimeType: "application/json", responseSchema: { type: "OBJECT", properties: Object.fromEntries(geminiFields.map((field) => [field, { type: "STRING" }])), required: geminiFields } } }),
-      });
-      if (!response.ok) { if (response.status === 429 || response.status === 404 || response.status >= 500) continue; throw new Error("Gemini failed"); }
-      const data = await response.json();
-      text = data.candidates?.[0]?.content?.parts?.find((part: { text?: string }) => typeof part.text === "string")?.text;
+      // 高解像度指定に対応していないモデルもあるので、400 のときは指定なしでもう一度試す。
+      for (const highRes of [true, false]) {
+        const generationConfig = { temperature: 0, responseMimeType: "application/json", responseSchema: schema, ...(highRes ? { mediaResolution: "MEDIA_RESOLUTION_HIGH" } : {}) };
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
+          method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": key }, signal: AbortSignal.timeout(25_000),
+          body: JSON.stringify({ contents: [{ parts: [{ inline_data: { mime_type: image.type, data: imageData } }, { text: prompt }] }], generationConfig }),
+        });
+        if (!response.ok) {
+          failures.push(`${model}:${response.status}`);
+          if (response.status === 400 && highRes) continue;
+          break;
+        }
+        const data = await response.json();
+        text = data.candidates?.[0]?.content?.parts?.find((part: { text?: string }) => typeof part.text === "string")?.text;
+        if (!text) failures.push(`${model}:empty`);
+        break;
+      }
       if (text) break;
     }
-    if (!text) throw new Error("Gemini failed");
+    if (!text) return Response.json({ error: "gemini_failed", detail: failures.join(",") }, { status: 502 });
     return Response.json(parseGeminiFields(JSON.parse(text)));
   } catch (error) {
     if (error instanceof Response) return error;
-    return Response.json({ error: "gemini_failed" }, { status: 502 });
+    return Response.json({ error: "gemini_failed", detail: error instanceof Error ? error.name : "unknown" }, { status: 502 });
   }
 }
