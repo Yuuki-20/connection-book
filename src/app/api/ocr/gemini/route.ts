@@ -25,14 +25,30 @@ export async function POST(request: Request) {
     }
     const key = process.env.GEMINI_API_KEY;
     if (!key) return Response.json({ error: "not_configured" }, { status: 503 });
-    const model = process.env.GEMINI_MODEL || "gemini-flash-lite-latest";
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
-      method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": key }, signal: AbortSignal.timeout(25_000),
-      body: JSON.stringify({ contents: [{ parts: [{ text: "名刺の写真です。書かれている文字だけを項目に入れる。無い項目は空文字。推測で補わない。電話番号は書かれている通り。" }, { inline_data: { mime_type: image.type, data: Buffer.from(await image.arrayBuffer()).toString("base64") } }] }], generationConfig: { responseMimeType: "application/json", responseSchema: { type: "OBJECT", properties: Object.fromEntries(geminiFields.map((field) => [field, { type: "STRING" }])), required: geminiFields } } }),
-    });
-    if (!response.ok) throw new Error("Gemini failed");
-    const data = await response.json();
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    // 精度優先で Flash を先に使い、無料枠の上限や未提供なら Flash-Lite に切り替える。
+    const models = [...new Set([process.env.GEMINI_MODEL, "gemini-flash-latest", "gemini-flash-lite-latest"].filter(Boolean) as string[])];
+    const imageData = Buffer.from(await image.arrayBuffer()).toString("base64");
+    const prompt = [
+      "これは日本の名刺の写真です。名刺に印刷されている文字を、一文字ずつ正確に読み取って各項目に入れてください。",
+      "・name: 人の氏名（いちばん大きく書かれていることが多い。姓と名の間は半角スペース1つ）。会社名や役職は入れない。",
+      "・nameKana: 氏名の読み（ふりがな・ローマ字表記があればそのまま）。",
+      "・company: 会社・団体・学校名。department: 部署。title: 役職。",
+      "・phone: 固定電話（TEL・電話・℡・代表など）。mobile: 携帯（090/080/070 など、Mobile・携帯）。fax: FAX。番号は数字とハイフンだけにし、全角は半角にする。",
+      "・email, website, postalCode（〒の後の数字）, address（都道府県から）。",
+      "書かれていない項目は空文字。推測で補ったり、別の項目の文字を入れたりしない。",
+    ].join("\n");
+    let text: string | undefined;
+    for (const model of models) {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
+        method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": key }, signal: AbortSignal.timeout(25_000),
+        body: JSON.stringify({ contents: [{ parts: [{ inline_data: { mime_type: image.type, data: imageData } }, { text: prompt }] }], generationConfig: { temperature: 0, mediaResolution: "MEDIA_RESOLUTION_HIGH", responseMimeType: "application/json", responseSchema: { type: "OBJECT", properties: Object.fromEntries(geminiFields.map((field) => [field, { type: "STRING" }])), required: geminiFields } } }),
+      });
+      if (!response.ok) { if (response.status === 429 || response.status === 404 || response.status >= 500) continue; throw new Error("Gemini failed"); }
+      const data = await response.json();
+      text = data.candidates?.[0]?.content?.parts?.find((part: { text?: string }) => typeof part.text === "string")?.text;
+      if (text) break;
+    }
+    if (!text) throw new Error("Gemini failed");
     return Response.json(parseGeminiFields(JSON.parse(text)));
   } catch (error) {
     if (error instanceof Response) return error;
