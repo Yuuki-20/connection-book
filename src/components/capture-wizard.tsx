@@ -84,7 +84,9 @@ export function CaptureWizard(props: { captureMode?: "quick" | "important" | "co
   async function readWithGemini(blob: Blob) {
     const form = new FormData();
     form.append("image", blob, "card.jpg");
-    const response = await fetch("/api/ocr/gemini", { method: "POST", body: form });
+    const supabase = createClient(); const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error("ログインし直してください");
+    const response = await fetch("/api/ocr/gemini", { method: "POST", headers: { Authorization: `Bearer ${session.access_token}` }, body: form });
     const body = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(`${response.status} ${body.error ?? ""} ${body.detail ?? ""}`.trim());
     return { result: geminiToOcrResult(parseGeminiFields(body)), model: typeof body.model === "string" ? body.model : "" };
