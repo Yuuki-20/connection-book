@@ -11,7 +11,10 @@ export async function POST(request: Request) {
     const now = Date.now();
     for (const [id, times] of limit) if (times.every((time) => time <= now - 60_000)) limit.delete(id);
     const times = (limit.get(member.id) ?? []).filter((time) => time > now - 60_000);
-    if (times.length >= 10) return Response.json({ error: "rate_limited" }, { status: 429 });
+    // 幹部（オーナー・管理者）は名刺登録が多いので枠を広げる。
+    const isLeader = member.role === "owner" || member.role === "admin" || member.is_admin === true;
+    const perMinute = isLeader ? 30 : 10;
+    if (times.length >= perMinute) return Response.json({ error: "rate_limited" }, { status: 429 });
     times.push(now); limit.set(member.id, times);
     let form: FormData;
     try { form = await request.formData(); } catch { return Response.json({ error: "invalid_input" }, { status: 400 }); }
