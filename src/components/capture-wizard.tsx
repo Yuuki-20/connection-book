@@ -7,6 +7,7 @@ import Link from "next/link";
 import { AlertTriangle, ArrowLeft, Camera, Check, ChevronRight, FilePenLine, LoaderCircle, Mail, Pencil, Save, ScanSearch, ShieldCheck, UserRoundCheck, X, Zap } from "lucide-react";
 import { Classification, ContactInput, contactSchema, quickContactSchema, DuplicateCandidate, MergeMode, renderTemplate } from "@/lib/domain";
 import { EmailCandidate, tesseractProvider } from "@/lib/ocr";
+import { geminiToOcrResult, parseGeminiFields } from "@/lib/gemini-ocr";
 import { cropImageRegion, NormalizedRect, preprocessBusinessCardImage, rotateImage } from "@/lib/image-processing";
 import { createClient } from "@/lib/supabase/browser";
 import { appFetch, sha256Hex } from "@/lib/client-api";
@@ -32,8 +33,8 @@ export function CaptureWizard(props: { captureMode?: "quick" | "important" | "co
   const [step, setStep] = useState<Step>("capture");
   const [newOcr, setNewOcr] = useState(false);
   const [usedNewOcr, setUsedNewOcr] = useState(false);
-  useEffect(() => { try { setTimeout(() => setNewOcr(localStorage.getItem("connection-book-new-ocr") === "true"), 0); } catch {} }, []);
-  function changeNewOcr(value: boolean) { setNewOcr(value); try { localStorage.setItem("connection-book-new-ocr", String(value)); } catch {} }
+  useEffect(() => { try { setTimeout(() => setNewOcr(localStorage.getItem("connection-book-gemini-ocr") === "true"), 0); } catch {} }, []);
+  function changeNewOcr(value: boolean) { setNewOcr(value); try { localStorage.setItem("connection-book-gemini-ocr", String(value)); } catch {} }
   const [contact, setContact] = useState<ContactInput>(blank);
   const [mailNotice, setMailNotice] = useState("");
   const [emailCandidates, setEmailCandidates] = useState<EmailCandidate[]>([]);
@@ -84,10 +85,21 @@ export function CaptureWizard(props: { captureMode?: "quick" | "important" | "co
 
   async function runOcr(blob: Blob) {
     setOcrProgress(0);
-    const fallback = await tesseractProvider.recognize(blob, ({ progress }) => setOcrProgress(Math.round(progress * 100)));
-    let attempt = { result: fallback, used: false };
-    if (newOcr) { try { attempt = await (await import("@/lib/ocr-new")).tryNewOcr(blob, fallback); } catch { /* 従来の結果を使う */ } }
-    const result = attempt.result; setUsedNewOcr(attempt.used);
+    let result;
+    let used = false;
+    if (newOcr) {
+      try {
+        if ("caches" in window) void Promise.all([caches.delete("card-ocr-v1"), caches.delete("card-ocr-v2")]).catch(() => {});
+        const form = new FormData();
+        form.append("image", blob, "card.jpg");
+        const response = await fetch("/api/ocr/gemini", { method: "POST", body: form });
+        if (!response.ok) throw new Error("Gemini unavailable");
+        result = geminiToOcrResult(parseGeminiFields(await response.json()));
+        used = true;
+      } catch { /* 従来の読み取りに切り替える */ }
+    }
+    result ??= await tesseractProvider.recognize(blob, ({ progress }) => setOcrProgress(Math.round(progress * 100)));
+    setUsedNewOcr(used);
     setRawText(result.rawText);
     setEmailCandidates(result.emailCandidates);
     setManualEmail(false);
@@ -232,8 +244,8 @@ export function CaptureWizard(props: { captureMode?: "quick" | "important" | "co
   return <div className="mx-auto max-w-3xl">
     <Header classification={classification} quickMode={quickMode}/>
     {quickMode ? <QuickSteps step={step}/> : <Steps step={step}/>}
-    {step === "capture" && <label className="mb-4 flex items-center gap-2 text-sm"><input type="checkbox" checked={newOcr} onChange={event => changeNewOcr(event.target.checked)}/>新しい読み取り（試験）</label>}
-    {step === "verify" && usedNewOcr && <p className="mb-3 text-xs text-[#69756d]">新しい読み取り（試験）で読みました</p>}
+    {step === "capture" && <label className="mb-4 flex items-center gap-2 text-sm"><input type="checkbox" checked={newOcr} onChange={event => changeNewOcr(event.target.checked)}/>AIで読み取り（Gemini・試験）</label>}
+    {step === "verify" && usedNewOcr && <p className="mb-3 text-xs text-[#69756d]">AI（Gemini）で読み取りました</p>}
     {step === "capture" && <CaptureStep progress={ocrProgress} error={error} onFile={onFile} quickMode={quickMode}/>}
     {step === "verify" && (quickMode
       ? <QuickVerifyStep
