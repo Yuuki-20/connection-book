@@ -4,6 +4,8 @@ import { geminiFields, parseGeminiFields } from "@/lib/gemini-ocr";
 const limit = new Map<string, number[]>();
 const allowed = new Set(["image/jpeg", "image/png", "image/webp", "image/heic"]);
 
+export const maxDuration = 60;
+
 export async function POST(request: Request) {
   try {
     assertSameOrigin(request);
@@ -41,21 +43,31 @@ export async function POST(request: Request) {
     let usedModel = "";
     const failures: string[] = [];
     const schema = { type: "OBJECT", properties: Object.fromEntries(geminiFields.map((field) => [field, { type: "STRING" }])), required: geminiFields };
-    for (const model of models) {
-      // 高解像度指定に対応していないモデルもあるので、400 のときは指定なしでもう一度試す。
-      for (const highRes of [true, false]) {
-        const generationConfig = { temperature: 0, responseMimeType: "application/json", responseSchema: schema, ...(highRes ? { mediaResolution: "MEDIA_RESOLUTION_HIGH" } : {}) };
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
-          method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": key }, signal: AbortSignal.timeout(25_000),
-          body: JSON.stringify({ contents: [{ parts: [{ inline_data: { mime_type: image.type, data: imageData } }, { text: prompt }] }], generationConfig }),
-        });
+    const started = Date.now();
+    // 考える時間（thinking）を最小にして速く返させる。モデルごとに書き方が違うので、400 なら次の書き方で試す。
+    const thinkingVariants: Array<Record<string, unknown> | undefined> = [{ thinkingLevel: "minimal" }, { thinkingBudget: 0 }, undefined];
+    outer: for (const model of models) {
+      for (const thinking of thinkingVariants) {
+        const remaining = 50_000 - (Date.now() - started);
+        if (remaining < 5_000) break outer;
+        const generationConfig = { temperature: 0, responseMimeType: "application/json", responseSchema: schema, ...(thinking ? { thinkingConfig: thinking } : {}) };
+        let response: Response;
+        try {
+          response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
+            method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": key }, signal: AbortSignal.timeout(Math.min(22_000, remaining)),
+            body: JSON.stringify({ contents: [{ parts: [{ inline_data: { mime_type: image.type, data: imageData } }, { text: prompt }] }], generationConfig }),
+          });
+        } catch (cause) {
+          failures.push(`${model}:${cause instanceof Error ? cause.name : "error"}`);
+          break; // 時間切れ・通信エラーは次のモデルへ
+        }
         if (!response.ok) {
           failures.push(`${model}:${response.status}`);
-          if (response.status === 400 && highRes) continue;
+          if (response.status === 400) continue; // 設定の書き方違い → 次の書き方
           break;
         }
         const data = await response.json();
-        text = data.candidates?.[0]?.content?.parts?.find((part: { text?: string }) => typeof part.text === "string")?.text;
+        text = data.candidates?.[0]?.content?.parts?.find((part: { text?: string; thought?: boolean }) => typeof part.text === "string" && !part.thought)?.text;
         if (!text) failures.push(`${model}:empty`); else usedModel = model;
         break;
       }
