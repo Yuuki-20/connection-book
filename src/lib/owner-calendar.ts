@@ -65,7 +65,7 @@ export async function pushEventToOwnerCalendars(supabase: Db, clubId: string, ev
         const full = event as AppEvent;
         const body = {
           summary: full.name,
-          description: `${full.description}${full.description ? "\n\n" : ""}つながり帳から登録`,
+          description: `${full.description}${full.description ? "\n\n" : ""}1st Penguin（起業部アプリ）から登録`,
           location: full.location,
           ...toGoogleTimes(full),
           extendedProperties: { private: { [TAG]: full.id } },

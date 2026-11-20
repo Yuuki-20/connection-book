@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-export const metadata: Metadata = { title: "プライバシーポリシー | つながり帳" };
+export const metadata: Metadata = { title: "プライバシーポリシー | 1st Penguin" };
 
 const sections: { title: string; body: string[] }[] = [
   {
     title: "1. このアプリについて",
     body: [
-      "つながり帳は、広島大学起業部 1st Penguin Club の部員が、名刺・人脈・イベント・お知らせを共有するための部内向けWebアプリです。一般公開のサービスではなく、招待された部員だけが使います。",
+      "1st Penguin（旧称：つながり帳）は、広島大学起業部 1st Penguin Club の部員が、名刺・人脈・イベント・お知らせを共有するための部内向けWebアプリです。一般公開のサービスではなく、招待された部員だけが使います。",
     ],
   },
   {
@@ -48,7 +48,7 @@ const sections: { title: string; body: string[] }[] = [
   },
   {
     title: "6. 問い合わせ窓口",
-    body: ["広島大学起業部 1st Penguin Club つながり帳 管理者：kazutoshi9981@gmail.com"],
+    body: ["広島大学起業部 1st Penguin Club 部内アプリ「1st Penguin」 管理者：kazutoshi9981@gmail.com"],
   },
 ];
 
@@ -68,7 +68,7 @@ export default function PrivacyPage() {
         ))}
       </div>
       <p className="mt-8 text-sm">
-        <Link href="/start" className="font-bold text-[#176b45] underline">つながり帳に戻る</Link>
+        <Link href="/start" className="font-bold text-[#176b45] underline">1st Penguinに戻る</Link>
       </p>
     </main>
   );

@@ -93,13 +93,13 @@ export async function POST(request: Request) {
       await sendGmail({
         from: connection.data.google_email,
         to: email,
-        subject: "【つながり帳】ログイン用リンク・コード",
+        subject: "【1st Penguin】ログイン用リンク・コード",
         body: [
-          "つながり帳のログイン用リンクです。下のリンクを開くとログインできます。",
+          "1st Penguin（起業部アプリ）のログイン用リンクです。下のリンクを開くとログインできます。",
           "",
           url,
           "",
-          ...(emailOtp ? [`リンクを開く代わりに、つながり帳の画面にこのコードを入力してもログインできます：${emailOtp}`, ""] : []),
+          ...(emailOtp ? [`リンクを開く代わりに、1st Penguinの画面にこのコードを入力してもログインできます：${emailOtp}`, ""] : []),
           "このリンク・コードは1回だけ使えます。有効期限は1時間です。",
           "心当たりがない場合は、このメールを無視してください。",
         ].join("\n"),
