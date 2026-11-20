@@ -11,6 +11,8 @@ import {
   X,
   Trophy,
   Pencil,
+  LifeBuoy,
+  Sparkles,
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { EmptyState, ErrorState, LoadingState } from "@/components/data-state";
@@ -276,8 +278,12 @@ function CalendarEventChip({
 /* ── Main page ── */
 
 /* ── ビジコン情報 ── */
+type ContestKind = "contest" | "support";
+
 type BusinessContest = {
   id: string;
+  kind?: ContestKind;
+  source?: "manual" | "gemini";
   location: string;
   title: string;
   organizer: string;
@@ -317,10 +323,18 @@ function deadlineLabel(deadline: string | null): { text: string; color: string }
   return { text: `あと${days}日`, color: "bg-[#e8f5ee] text-[#176b45]" };
 }
 
-function BizconView({ canManage }: { canManage: boolean }) {
+/** 種類ごとの表示の言葉。ビジコン＝締切のあるもの、支援＝いつでも使えるもの。 */
+const KIND_TEXT = {
+  contest: { noun: "ビジコン情報", title: "大会名", organizer: "主催", body: "概要", place: "会場（オンラインなら「オンライン」）", empty: "ビジコン情報はまだありません。" },
+  support: { noun: "支援情報", title: "名前（制度・相談窓口・施設など）", organizer: "提供元", body: "内容（だれが・何を受けられるか・使い方）", place: "場所（オンラインなら「オンライン」）", empty: "支援情報はまだありません。" },
+} as const;
+
+function BizconView({ canManage, kind = "contest" }: { canManage: boolean; kind?: ContestKind }) {
+  const text = KIND_TEXT[kind];
+  const isSupport = kind === "support";
   const [showPast, setShowPast] = useState(false);
   const state = useAppData<{ businessContests: BusinessContest[] }>(
-    `/api/app?view=business_contests${showPast ? "&showPast=true" : ""}`
+    `/api/app?view=business_contests&kind=${kind}${showPast && !isSupport ? "&showPast=true" : ""}`
   );
   const [showForm, setShowForm] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -366,7 +380,7 @@ function BizconView({ canManage }: { canManage: boolean }) {
       };
       await appFetch("/api/app", { method: "POST", body: JSON.stringify(editingId
         ? { action: "update_business_contest", id: editingId, ...fields }
-        : { action: "create_business_contest", ...fields }) });
+        : { action: "create_business_contest", kind, ...fields }) });
       resetForm();
       await state.reload();
     } catch (e) { setError(e instanceof Error ? e.message : "保存できませんでした。"); }
@@ -374,7 +388,7 @@ function BizconView({ canManage }: { canManage: boolean }) {
   }
 
   async function deleteContest(id: string) {
-    if (!confirm("このビジコン情報を削除しますか？")) return;
+    if (!confirm(`この${text.noun}を削除しますか？`)) return;
     setBusy(true);
     try { await appFetch("/api/app", { method: "POST", body: JSON.stringify({ action: "delete_business_contest", id }) }); await state.reload(); }
     catch (e) { setError(e instanceof Error ? e.message : "削除できませんでした。"); }
@@ -390,13 +404,17 @@ function BizconView({ canManage }: { canManage: boolean }) {
     <div className="mt-4 grid gap-4">
       {/* Toggle past items */}
       <div className="flex items-center justify-between">
-        <label className="flex items-center gap-2 text-sm font-bold text-[#68746d]">
-          <input type="checkbox" checked={showPast} onChange={e => setShowPast(e.target.checked)} className="rounded" />
-          過去のビジコンも表示
-        </label>
+        {isSupport ? (
+          <p className="text-sm font-bold text-[#68746d]">締切のない、いつでも使える支援です。</p>
+        ) : (
+          <label className="flex items-center gap-2 text-sm font-bold text-[#68746d]">
+            <input type="checkbox" checked={showPast} onChange={e => setShowPast(e.target.checked)} className="rounded" />
+            過去のビジコンも表示
+          </label>
+        )}
         {canManage && (
           <button className="btn-primary text-sm" onClick={() => (showForm ? resetForm() : (setEditingId(null), setShowForm(true)))}>
-            + ビジコン情報を追加
+            + {text.noun}を追加
           </button>
         )}
       </div>
@@ -404,13 +422,13 @@ function BizconView({ canManage }: { canManage: boolean }) {
       {showForm && (
         <section className="card grid gap-3 p-5">
           <div className="flex items-center justify-between">
-            <h3 className="font-black">{editingId ? "ビジコン情報を編集" : "ビジコン情報を追加"}</h3>
+            <h3 className="font-black">{editingId ? `${text.noun}を編集` : `${text.noun}を追加`}</h3>
             <button onClick={resetForm} className="rounded-lg p-1 hover:bg-[#f1f3f1]" aria-label="閉じる"><X size={18} /></button>
           </div>
-          <input className="field" placeholder="大会名" value={title} onChange={e => setTitle(e.target.value)} />
-          <input className="field" placeholder="主催" value={organizer} onChange={e => setOrganizer(e.target.value)} />
-          <textarea className="field min-h-24" placeholder="概要" value={description} onChange={e => setDescription(e.target.value)} />
-          <div className="grid gap-3 sm:grid-cols-2">
+          <input className="field" placeholder={text.title} value={title} onChange={e => setTitle(e.target.value)} />
+          <input className="field" placeholder={text.organizer} value={organizer} onChange={e => setOrganizer(e.target.value)} />
+          <textarea className="field min-h-24" placeholder={text.body} value={description} onChange={e => setDescription(e.target.value)} />
+          {!isSupport && <div className="grid gap-3 sm:grid-cols-2">
             <label className="label">開催日<input className="field" type="date" value={eventDate} onChange={e => setEventDate(e.target.value)} /></label>
             <div className="label">応募締切
               <div className="grid grid-cols-[1fr_auto] gap-2">
@@ -418,8 +436,8 @@ function BizconView({ canManage }: { canManage: boolean }) {
                 <input className="field w-28" type="time" aria-label="締切時刻" value={deadlineTime} onChange={e => setDeadlineTime(e.target.value)} disabled={!deadline} />
               </div>
             </div>
-          </div>
-          <input className="field" placeholder="会場（オンラインなら「オンライン」）" value={place} onChange={e => setPlace(e.target.value)} />
+          </div>}
+          <input className="field" placeholder={text.place} value={place} onChange={e => setPlace(e.target.value)} />
           <input className="field" type="url" inputMode="url" placeholder="URL（https://…）" value={url} onChange={e => setUrl(e.target.value)} />
           <button className="btn-primary" disabled={busy || !title} onClick={createContest}>{busy ? "保存中…" : editingId ? "変更を保存" : "追加"}</button>
         </section>
@@ -427,7 +445,7 @@ function BizconView({ canManage }: { canManage: boolean }) {
       {error && <p role="alert" className="card p-4 text-sm font-bold text-[#a93830]">{error}</p>}
 
       {!contests.length ? (
-        <EmptyState>ビジコン情報はまだありません。</EmptyState>
+        <EmptyState>{text.empty}</EmptyState>
       ) : (
         contests.map(c => {
           const dl = deadlineLabel(c.deadline);
@@ -436,14 +454,19 @@ function BizconView({ canManage }: { canManage: boolean }) {
             <article className="card p-5" key={c.id}>
               <div className="flex items-start justify-between gap-3">
                 <div className="flex min-w-0 gap-3">
-                  <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-[#f0e6ff] text-[#6b3fa0]">
-                    <Trophy />
+                  <span className={`grid size-11 shrink-0 place-items-center rounded-xl ${isSupport ? "bg-[#e3f2fb] text-[#1d6a96]" : "bg-[#f0e6ff] text-[#6b3fa0]"}`}>
+                    {isSupport ? <LifeBuoy /> : <Trophy />}
                   </span>
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
                       {dl && (
                         <span className={`rounded-full px-2 py-0.5 text-[10px] font-black ${dl.color}`}>
                           {dl.text}
+                        </span>
+                      )}
+                      {c.source === "gemini" && (
+                        <span className="flex items-center gap-0.5 rounded-full bg-[#eef3ff] px-2 py-0.5 text-[10px] font-black text-[#3b5bab]" title="イベント自動収集ボット（Gemini）が見つけた情報">
+                          <Sparkles size={10} />AI収集
                         </span>
                       )}
                       <h3 className="text-lg font-black">{c.title}</h3>
@@ -508,7 +531,7 @@ export default function EventsPage() {
   const [makeCurrent, setMakeCurrent] = useState(true);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const [view, setView] = useState<"calendar" | "list" | "bizcon">("calendar");
+  const [view, setView] = useState<"calendar" | "list" | "bizcon" | "support">("calendar");
   const [selectedEvent, setSelectedEvent] = useState<LocalEvent | null>(null);
   // 編集中のイベント（null なら新規作成）
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -869,6 +892,13 @@ export default function EventsPage() {
           <Trophy size={14} className="mr-1 inline" />
           ビジコン
         </button>
+        <button
+          className={`flex-1 whitespace-nowrap rounded-lg px-2 py-2 text-sm font-black transition ${view === "support" ? "bg-white shadow-sm" : "text-[#68746d]"}`}
+          onClick={() => setView("support")}
+        >
+          <LifeBuoy size={14} className="mr-1 inline" />
+          支援
+        </button>
       </div>
 
       {/* ── Calendar view ── */}
@@ -1139,6 +1169,9 @@ export default function EventsPage() {
 
       {/* ── ビジコン情報 view ── */}
       {view === "bizcon" && <BizconView canManage={data.canManage} />}
+
+      {/* ── 支援情報 view（締切のない、いつでも使える支援） ── */}
+      {view === "support" && <BizconView key="support" canManage={data.canManage} kind="support" />}
 
     </div>
   );
