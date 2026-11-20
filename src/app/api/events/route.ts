@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { apiError } from "@/lib/api-error";
 import { assertSameOrigin, requireMember, requireOrganizationManager } from "@/lib/server-auth";
+import { listOwnerPersonalEvents, pushEventToOwnerCalendars } from "@/lib/owner-calendar";
 
 const eventTypeSchema = z.enum(["regular", "guest", "external"]).default("regular");
 
@@ -55,10 +56,15 @@ export async function GET(request: Request) {
       .order("starts_at");
 
     if (result.error) throw result.error;
+    // オーナー本人だけ、個人Googleカレンダーの予定も返す（灰色で表示する）。
+    const personal = await listOwnerPersonalEvents(supabase, member, timeMin, timeMax);
 
     return Response.json(
       {
         localEvents: result.data ?? [],
+        personalEvents: personal.events,
+        personalCalendarConnected: personal.connected,
+        personalCalendarError: personal.error ?? null,
         selectedEventId: member.selected_event_id,
         canManage: member.access_role === "owner" || member.access_role === "admin",
       },
@@ -122,6 +128,8 @@ export async function POST(request: Request) {
         .eq("club_id", member.club_id)
         .eq("id", input.eventId);
       if (deleted.error) throw deleted.error;
+      // オーナー個人カレンダーからも消す。
+      await pushEventToOwnerCalendars(supabase, member.club_id, { id: input.eventId }, "delete");
 
       await supabase.from("audit_logs").insert({
         club_id: member.club_id,
@@ -153,7 +161,7 @@ export async function POST(request: Request) {
         })
         .eq("club_id", member.club_id)
         .eq("id", input.eventId)
-        .select("id");
+        .select("id,all_day");
       if (updated.error) throw updated.error;
       if (!updated.data?.length)
         return Response.json({ error: "not_found", message: "このイベントは削除されています。" }, { status: 404 });
@@ -165,7 +173,9 @@ export async function POST(request: Request) {
         entity_type: "event",
         entity_id: input.eventId,
       });
-      return Response.json({ ok: true, id: input.eventId });
+      // オーナー個人カレンダーの同じ予定も直す。
+      const calendar = await pushEventToOwnerCalendars(supabase, member.club_id, { id: input.eventId, name: input.name, description: input.description, location: input.location, startsAt: input.startsAt, endsAt: input.endsAt, allDay: Boolean(updated.data[0]?.all_day) }, "upsert");
+      return Response.json({ ok: true, id: input.eventId, ownerCalendar: calendar });
     }
 
     // action === "create"
@@ -225,8 +235,10 @@ export async function POST(request: Request) {
       entity_type: "event",
       entity_id: inserted.data.id,
     });
+    // オーナー個人カレンダーにも入れる。
+    const calendar = await pushEventToOwnerCalendars(supabase, member.club_id, { id: inserted.data.id, name: input.name, description: input.description, location: input.location, startsAt: input.startsAt, endsAt: input.endsAt }, "upsert");
 
-    return Response.json({ ok: true, id: inserted.data.id });
+    return Response.json({ ok: true, id: inserted.data.id, ownerCalendar: calendar });
   } catch (error) {
     return apiError(error);
   }
