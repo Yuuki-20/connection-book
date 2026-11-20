@@ -6,6 +6,7 @@ const base={name:"田中 美咲",company:"瀬戸内ベンチャーズ",role:"パ
 describe("human-reviewed contact validation",()=>{
   it("requires a valid email before mail processing",()=>{expect(contactSchema.safeParse({...base,email:"OCR-error"}).success).toBe(false)});
   it("accepts corrected contact input",()=>{expect(contactSchema.safeParse(base).success).toBe(true)});
+  it("accepts a card without an email address",()=>{expect(contactSchema.safeParse({...base,email:""}).success).toBe(true)});
 });
 
 describe("club-wide duplicate checks",()=>{

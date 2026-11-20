@@ -11,7 +11,8 @@ export const contactSchema = z.object({
   name: z.string().trim().min(1, "氏名を入力してください").max(120),
   company: z.string().trim().max(200),
   role: z.string().trim().max(120),
-  email: z.string().trim().toLowerCase().email("メールアドレスの形式を確認してください"),
+  // メールアドレスがない名刺もあるので空欄を許す（空欄のときはお礼メール・下書きの処理を飛ばす）。
+  email: z.union([z.literal(""), z.string().trim().toLowerCase().email("メールアドレスの形式を確認してください")]),
   phone: z.string().trim().max(40),
   address: z.string().trim().max(400),
   website: z.union([z.literal(""), z.string().url("URLの形式を確認してください")]),
