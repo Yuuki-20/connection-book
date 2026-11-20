@@ -5,12 +5,13 @@ import { UpdateBanner } from "@/components/update-banner";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: { default: "つながり帳", template: "%s | つながり帳" },
+  title: { default: "1st Penguin", template: "%s | 1st Penguin" },
   description: "起業部内限定の名刺管理・お礼メール支援PWA",
-  applicationName: "つながり帳",
+  applicationName: "1st Penguin",
   manifest: "/manifest.webmanifest",
-  appleWebApp: { capable: true, statusBarStyle: "default", title: "つながり帳" },
+  appleWebApp: { capable: true, statusBarStyle: "default", title: "1st Penguin" },
   formatDetection: { telephone: false },
+  icons: { icon: "/favicon.ico", apple: "/apple-touch-icon.png" },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

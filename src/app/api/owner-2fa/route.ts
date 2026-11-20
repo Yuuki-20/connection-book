@@ -153,11 +153,11 @@ async function sendCode(supabase: Db, member: Member, to: string, otp: string, p
   if (!connection.data || connection.data.status !== "active") {
     return json({ error: "organization_google_not_connected", message: "組織Googleアカウントが接続されていないため、認証コードを送れません。" }, 409);
   }
-  const subject = purpose === "login" ? "【つながり帳】オーナー認証コード" : "【つながり帳】個人メール登録の確認コード";
+  const subject = purpose === "login" ? "【1st Penguin】オーナー認証コード" : "【1st Penguin】個人メール登録の確認コード";
   const body = [
     `${member.name} さん`,
     "",
-    purpose === "login" ? "つながり帳のオーナー認証コードです。" : "つながり帳の二段階認証に、このメールアドレスを登録するための確認コードです。",
+    purpose === "login" ? "1st Penguinのオーナー認証コードです。" : "1st Penguinの二段階認証に、このメールアドレスを登録するための確認コードです。",
     "",
     `認証コード：${otp}`,
     "",

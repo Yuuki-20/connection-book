@@ -74,7 +74,7 @@ export default function Home() {
   if (state.error?.includes("ログイン") || state.error?.includes("所属"))
     return (
       <section className="card mx-auto max-w-lg p-6 text-center">
-        <h1 className="text-2xl font-black">つながり帳をはじめる</h1>
+        <h1 className="text-2xl font-black">1st Penguinをはじめる</h1>
         <p className="mt-2 text-sm text-[#68746d]">部員としてログインするか、幹部として新しい団体を作成してください。</p>
         <Link href="/start" className="btn-primary mt-5 w-full">ログイン・団体作成<ArrowRight size={18} /></Link>
       </section>

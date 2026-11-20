@@ -47,7 +47,7 @@ export function encryptBackup(json: string, key = backupKey()) {
 }
 
 export function decryptBackup(file: Buffer, key: Buffer) {
-  if (!file.subarray(0, MAGIC.length).equals(MAGIC)) throw new Error("つながり帳のバックアップファイルではありません。");
+  if (!file.subarray(0, MAGIC.length).equals(MAGIC)) throw new Error("1st Penguin（旧つながり帳）のバックアップファイルではありません。");
   const iv = file.subarray(5, 17), tag = file.subarray(17, 33), body = file.subarray(33);
   const decipher = createDecipheriv("aes-256-gcm", key, iv);
   decipher.setAuthTag(tag);

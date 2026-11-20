@@ -23,7 +23,7 @@ export async function POST(request: Request) {
     await supabase.from("followups").update({ calendar_status: "processing", calendar_error: null }).eq("id", followupId).eq("club_id", member.club_id);
     try {
       const start = new Date(result.data.due_at); const end = new Date(start.getTime() + 30 * 60 * 1000);
-      const contactName=linked?.name;const created = await createCalendarFollowup({ summary: `${contactName ?? "連絡先"} — ${result.data.content}`, description: "つながり帳から登録", start: start.toISOString(), end: end.toISOString(), refreshToken: orgCalendar ? decryptGoogleToken(orgCalendar.encrypted_refresh_token) : undefined });
+      const contactName=linked?.name;const created = await createCalendarFollowup({ summary: `${contactName ?? "連絡先"} — ${result.data.content}`, description: "1st Penguin（起業部アプリ）から登録", start: start.toISOString(), end: end.toISOString(), refreshToken: orgCalendar ? decryptGoogleToken(orgCalendar.encrypted_refresh_token) : undefined });
       await supabase.from("followups").update({ calendar_status: "created", google_calendar_event_id: created.data.id }).eq("id", followupId).eq("club_id", member.club_id);
       await supabase.from("audit_logs").insert({club_id:member.club_id,actor_member_id:member.id,action:"calendar_event_created",entity_type:"followup",entity_id:followupId,metadata:{google_calendar_event_id:created.data.id}});
       return Response.json({ ok: true, eventId: created.data.id });
