@@ -40,7 +40,7 @@ const mutationSchema = z.discriminatedUnion("action", [
   z.object({action:z.literal("create_job_posting"),title:z.string().trim().min(1).max(200),company:z.string().max(200).default(""),body:z.string().trim().min(1).max(5000),hourlyRate:z.string().max(100).default(""),location:z.string().max(300).default(""),deadline:z.string().datetime().nullable().default(null),contactInfo:z.string().max(500).default("")}),
   z.object({action:z.literal("update_job_posting"),id:z.string().uuid(),title:z.string().trim().min(1).max(200),company:z.string().max(200).default(""),body:z.string().trim().min(1).max(5000),hourlyRate:z.string().max(100).default(""),location:z.string().max(300).default(""),deadline:z.string().datetime().nullable().default(null),contactInfo:z.string().max(500).default(""),isActive:z.boolean().default(true)}),
   z.object({action:z.literal("delete_job_posting"),id:z.string().uuid()}),
-  z.object({action:z.literal("create_business_contest"),title:z.string().trim().min(1).max(200),organizer:z.string().max(200).default(""),body:z.string().trim().max(5000).default(""),url:z.union([z.literal(""),z.string().trim().max(2000).url().regex(/^https?:\/\//i,"http(s)のURLを入力してください")]).default(""),eventDate:z.string().datetime().nullable().default(null),deadline:z.string().datetime().nullable().default(null),location:z.string().max(300).default("")}),
+  z.object({action:z.literal("create_business_contest"),kind:z.enum(["contest","support"]).default("contest"),title:z.string().trim().min(1).max(200),organizer:z.string().max(200).default(""),body:z.string().trim().max(5000).default(""),url:z.union([z.literal(""),z.string().trim().max(2000).url().regex(/^https?:\/\//i,"http(s)のURLを入力してください")]).default(""),eventDate:z.string().datetime().nullable().default(null),deadline:z.string().datetime().nullable().default(null),location:z.string().max(300).default("")}),
   z.object({action:z.literal("update_business_contest"),id:z.string().uuid(),title:z.string().trim().min(1).max(200),organizer:z.string().max(200).default(""),body:z.string().trim().max(5000).default(""),url:z.union([z.literal(""),z.string().trim().max(2000).url().regex(/^https?:\/\//i,"http(s)のURLを入力してください")]).default(""),eventDate:z.string().datetime().nullable().default(null),deadline:z.string().datetime().nullable().default(null),location:z.string().max(300).default(""),isActive:z.boolean().default(true)}),
   z.object({action:z.literal("delete_business_contest"),id:z.string().uuid()}),
 ]);
@@ -155,7 +155,14 @@ export async function GET(request: Request) {
     if (view === "business_contests") {
       const manager = member.access_role === "owner" || member.access_role === "admin";
       const showPast = url.searchParams.get("showPast") === "true";
-      let query = supabase.from("business_contests").select("id,title,organizer,body,url,event_date,deadline,location,is_active,published_at,author:members!business_contests_author_member_id_fkey(name)").eq("club_id", member.club_id);
+      const kind = url.searchParams.get("kind") === "support" ? "support" : "contest";
+      let query = supabase.from("business_contests").select("id,kind,source,title,organizer,body,url,event_date,deadline,location,is_active,published_at,author:members!business_contests_author_member_id_fkey(name)").eq("club_id", member.club_id).eq("kind", kind);
+      if (kind === "support") {
+        // 支援は締切がない「いつでも使える」もの。新しく載ったものから並べる。
+        const result = await query.eq("is_active", true).order("published_at", { ascending: false }).limit(100);
+        throwFirst(result);
+        return Response.json({ businessContests: result.data ?? [], canManage: manager });
+      }
       // 終わったもの＝締切を過ぎたもの。締切がないものは開催日を過ぎたら終わり扱い。
       if (!showPast) { const now = new Date().toISOString(); query = query.eq("is_active", true).or(`deadline.gte."${now}",and(deadline.is.null,event_date.is.null),and(deadline.is.null,event_date.gte."${now}")`); }
       const result = await query.order("event_date", { ascending: true, nullsFirst: false }).limit(100);
@@ -337,7 +344,7 @@ export async function POST(request: Request) {
       await audit(supabase,member,"job_posting_deleted","job_posting",input.id);
     } else if(input.action==="create_business_contest"){
       requireOrganizationManager(member);
-      const result=await supabase.from("business_contests").insert({club_id:member.club_id,author_member_id:member.id,title:input.title,organizer:input.organizer,body:input.body,url:input.url,event_date:input.eventDate,deadline:input.deadline,location:input.location}).select("id").single();throwFirst(result);
+      const result=await supabase.from("business_contests").insert({club_id:member.club_id,author_member_id:member.id,kind:input.kind,title:input.title,organizer:input.organizer,body:input.body,url:input.url,event_date:input.eventDate,deadline:input.deadline,location:input.location}).select("id").single();throwFirst(result);
       await audit(supabase,member,"business_contest_created","business_contest",result.data!.id);return Response.json({ok:true,id:result.data!.id});
     } else if(input.action==="update_business_contest"){
       requireOrganizationManager(member);
