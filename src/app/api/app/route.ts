@@ -137,7 +137,7 @@ export async function GET(request: Request) {
       return Response.json({ member,sender,senderChoices,canSuspend:canSuspend(member),libraryRequests:libraryRequests.data??[],organization:club.data,mailSettings:mailSettings.data,members:members.data??[],organizationGoogle:organizationGoogle.data,userGoogle:userGoogle.data,oauthClientConfigured,devices: devices.data ?? [], templates: templates.data ?? [], jobs: jobs.data ?? [], integrations: { gmail: Boolean(organizationGoogle.data||userGoogle.data), drive: legacyGoogleConfigured, people: legacyGoogleConfigured, calendar: legacyGoogleConfigured } });
     }
     if (view === "bulletin") {
-      if (await ownerNeeds2FA(supabase, member, authSessionId)) {
+      if (await ownerNeeds2FA(supabase, member, authSessionId, request)) {
         return Response.json({ owner2faRequired: true, member: { name: member.name, access_role: member.access_role } }, { headers: { "Cache-Control": "no-store" } });
       }
       const manager = member.access_role === "owner" || member.access_role === "admin";
