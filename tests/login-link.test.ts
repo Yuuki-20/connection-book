@@ -49,5 +49,8 @@ describe("ログインコード（6桁）", () => {
     expect(route).toContain("email_otp");
     expect(page).toContain("verifyOtp");
     expect(page).toContain('type:"email"');
+    // コードの桁数はSupabaseの設定で変わる（今は8桁）。6桁に決め打ちしない。
+    expect(page).toContain("maxLength={10}");
+    expect(page).not.toContain("otp.length!==6");
   });
 });
