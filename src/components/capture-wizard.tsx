@@ -37,6 +37,7 @@ export function CaptureWizard(props: { captureMode?: "quick" | "important" | "co
   const [contact, setContact] = useState<ContactInput>(blank);
   const [ocrBaseline, setOcrBaseline] = useState<Partial<ContactInput> | null>(null);
   const [mailNotice, setMailNotice] = useState("");
+  const [noEmailSaved, setNoEmailSaved] = useState(false);
   const [emailCandidates, setEmailCandidates] = useState<EmailCandidate[]>([]);
   const [rawText, setRawText] = useState("");
   const [image, setImage] = useState<string>();
@@ -121,7 +122,7 @@ export function CaptureWizard(props: { captureMode?: "quick" | "important" | "co
       }
       setError("");
     } else {
-      setError(result.emailCandidates.length === 0 ? "メールアドレスを読み取れませんでした。範囲を指定して再読取するか、手入力してください。" : "");
+      setError(result.emailCandidates.length === 0 ? "メールアドレスを読み取れませんでした。範囲を指定して再読取するか、手入力してください（名刺にメールアドレスが無い場合は空欄のまま進めます）。" : "");
     }
   }
 
@@ -220,6 +221,15 @@ export function CaptureWizard(props: { captureMode?: "quick" | "important" | "co
     if(saving)return;
     if (duplicates.some(x=>x.contactId) && !mergeChoice) { setError("既に登録されている名刺の扱い（上書き・併記・別人として登録）を選んでください。"); return; }
     if (quickMode) { await quickSave(); return; }
+    // メールアドレスがない名刺は、お礼メール・Gmail下書きを作らずに保存だけする。
+    const hasEmail = Boolean(contact.email.trim());
+    if (!hasEmail) {
+      setSaving(true);
+      try { const id = contactId || await persistContact(); setContactId(id); setNoEmailSaved(true); localStorage.removeItem("connection-book-capture-draft"); setStep("done"); }
+      catch (cause) { setError(cause instanceof Error ? cause.message : "CRMへ登録できませんでした。"); }
+      finally { setSaving(false); }
+      return;
+    }
     if (strongDuplicate && classification==="courtesy" && !overrideReason) return;
     if((classification==="important"||classification==="courtesy")&&!settings.data?.templates.some(x=>x.is_default)){setError("デフォルトのメールテンプレートが未設定です。設定画面で作成してから登録してください。");return}
     setSaving(true);
@@ -282,6 +292,7 @@ export function CaptureWizard(props: { captureMode?: "quick" | "important" | "co
     {step === "duplicate" && <DuplicateStep contact={contact} duplicates={duplicates} mergeChoice={mergeChoice} setMergeChoice={(value)=>{setMergeChoice(value);setError("")}} askReason={Boolean(strongDuplicate)&&classification==="courtesy"&&!quickMode} reason={overrideReason} saving={saving} error={error} setReason={setOverrideReason} onBack={() => setStep("verify")} onContinue={continueAfterDuplicate}/>}
     {!quickMode && step === "mail" && mailNotice && <p className="mb-3 rounded-xl border border-[#e8c98a] bg-[#fff8e6] p-3 text-sm font-bold text-[#7a5200]">{mailNotice}</p>}
     {!quickMode && step === "mail" && <MailStep contact={contact} sender={senderView} senderChoices={senderChoices?{value:senderChoice,onChange:setSenderChoice,organization:senderChoices.organization_email.email,personal:senderChoices.personal_email.email}:null} onRetrySender={()=>void settings.reload()} ccInput={ccInput} setCcInput={setCcInput} finalCc={finalCc} bccInput={bccInput} setBccInput={setBccInput} templateName={settings.data?.templates.find(x=>x.is_default)?.name??"未設定"} signature={settings.data?.member.signature??context.data?.member.signature??""} canDisableOrganizationCc={Boolean(settings.data?.member.access_role==="member"&&settings.data.mailSettings.auto_cc_organization_email&&settings.data.mailSettings.allow_member_to_disable_cc)} disableOrganizationCc={disableOrganizationCc} setDisableOrganizationCc={setDisableOrganizationCc} subject={subject} setSubject={setSubject} body={body} setBody={setBody} confirmed={confirmed} setConfirmed={setConfirmed} error={error} sending={sending} onBack={() => setStep("verify")} onSend={send}/>}
+    {step === "done" && noEmailSaved && <p className="mb-3 rounded-xl border border-[#e8c98a] bg-[#fff8e6] p-3 text-sm font-bold text-[#7a5200]">メールアドレスがない名刺として保存しました。お礼メールは送っていません。電話などで連絡し、メールアドレスが分かったら人物の詳細画面から追加してください。</p>}
     {step === "done" && <DoneStep classification={classification} contactId={contactId} quickMode={quickMode} onRestart={props.onRestart}/>}
   </div>;
 }
@@ -344,9 +355,9 @@ function VerifyStep(props: VerifyProps) {
     {props.selectingRegion && props.image && <EmailRegionSelector imageUrl={props.image} busy={props.progress !== undefined} onCancel={props.onCancelRegion} onRead={props.onReadRegion} onRotate={props.onRotate}/>}
     {props.progress !== undefined && <Progress value={props.progress}/>}
     <div className="mt-5 grid gap-4 sm:grid-cols-2"><Field label="氏名 *" value={contact.name} onChange={(name) => setContact({...contact, name})}/><Field label="会社・所属" value={contact.company} onChange={(company) => setContact({...contact, company})}/><Field label="役職" value={contact.role} onChange={(role) => setContact({...contact, role})}/>
-      <label className="label"><span className="text-[#a8332b]">送信先メールアドレス *</span>{!props.manualEmail && props.candidates.length > 0 ? <><select aria-label="メールアドレス候補から入力" className="field border-2 border-[#cf5a50]" value="" onChange={(event) => { if (event.target.value) setContact({...contact, email: event.target.value}); }}><option value="">候補から入力・選び直す</option>{props.candidates.map((candidate) => <option key={candidate.value} value={candidate.value}>{candidate.value}{candidate.source === "corrected" ? "（補正候補）" : ""}</option>)}</select><span className="mt-1 text-xs font-bold text-[#176b45]">選択後に下の欄で直接修正できます</span><input className="field border-2 border-[#cf5a50]" inputMode="email" autoComplete="email" spellCheck={false} placeholder="候補を選ぶか、名刺を見て入力" value={contact.email} onChange={(event) => setContact({...contact, email: event.target.value})}/>{props.candidates.some((candidate) => candidate.source === "corrected") && <small className="rounded-lg bg-[#fff3d6] p-2 font-medium text-[#805813]">補正候補を含みます。句読点等を名刺原本で必ず確認してください。</small>}</> : <input id="manual-email" className="field border-2 border-[#cf5a50]" inputMode="email" autoComplete="email" spellCheck={false} placeholder="名刺を見ながら入力" value={contact.email} onChange={(event) => setContact({...contact, email: event.target.value})}/>}<small className="font-medium text-[#a8332b]">候補は自動確定されません。必ず人間が選択・修正します。</small></label>
+      <label className="label"><span className="text-[#a8332b]">送信先メールアドレス（名刺に無ければ空欄のまま）</span>{!props.manualEmail && props.candidates.length > 0 ? <><select aria-label="メールアドレス候補から入力" className="field border-2 border-[#cf5a50]" value="" onChange={(event) => { if (event.target.value) setContact({...contact, email: event.target.value}); }}><option value="">候補から入力・選び直す</option>{props.candidates.map((candidate) => <option key={candidate.value} value={candidate.value}>{candidate.value}{candidate.source === "corrected" ? "（補正候補）" : ""}</option>)}</select><span className="mt-1 text-xs font-bold text-[#176b45]">選択後に下の欄で直接修正できます</span><input className="field border-2 border-[#cf5a50]" inputMode="email" autoComplete="email" spellCheck={false} placeholder="候補を選ぶか、名刺を見て入力" value={contact.email} onChange={(event) => setContact({...contact, email: event.target.value})}/>{props.candidates.some((candidate) => candidate.source === "corrected") && <small className="rounded-lg bg-[#fff3d6] p-2 font-medium text-[#805813]">補正候補を含みます。句読点等を名刺原本で必ず確認してください。</small>}</> : <input id="manual-email" className="field border-2 border-[#cf5a50]" inputMode="email" autoComplete="email" spellCheck={false} placeholder="名刺を見ながら入力" value={contact.email} onChange={(event) => setContact({...contact, email: event.target.value})}/>}<small className="font-medium text-[#a8332b]">候補は自動確定されません。必ず人間が選択・修正します。</small></label>
       <Field label="電話番号" value={contact.phone} onChange={(phone) => setContact({...contact, phone})}/><Field label="Webサイト" value={contact.website} onChange={(website) => setContact({...contact, website})}/><label className="label sm:col-span-2">住所<input className="field" value={contact.address} onChange={(event) => setContact({...contact, address:event.target.value})}/></label><label className="label sm:col-span-2">その他情報・メモ<textarea className="field min-h-24" value={contact.notes} onChange={(event) => setContact({...contact, notes:event.target.value})}/></label></div>
-    {props.error && <ErrorMessage>{props.error}</ErrorMessage>}<div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-between"><button onClick={props.onBack} className="btn-secondary"><ArrowLeft size={18}/>撮り直す</button><button onClick={props.onVerify} className="btn-primary" disabled={!contact.email.trim()}>内容を確認した<ChevronRight size={18}/></button></div>
+    {props.error && <ErrorMessage>{props.error}</ErrorMessage>}<div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-between"><button onClick={props.onBack} className="btn-secondary"><ArrowLeft size={18}/>撮り直す</button><button onClick={props.onVerify} className="btn-primary">内容を確認した<ChevronRight size={18}/></button></div>
   </section>;
 }
 
