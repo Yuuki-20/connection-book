@@ -4,13 +4,14 @@ import { apiError } from "@/lib/api-error";
 import { sendGmail } from "@/lib/google";
 import { decryptGoogleToken } from "@/lib/google-token-crypto";
 import { isGoogleReauthError } from "@/lib/organization-mail";
-import { assertSameOrigin, ownerNeeds2FA, requireMember, requireOwner } from "@/lib/server-auth";
+import { assertSameOrigin, OWNER_TRUST_COOKIE, OWNER_TRUSTED_DEVICE_MS, ownerNeeds2FA, requireMember, requireOwner, trustedDeviceKey, trustTokenFromRequest } from "@/lib/server-auth";
 
 /**
  * オーナーの二段階認証。
  * - 認証コードは、部の組織Googleアカウント（Gmail）から、オーナーが登録した個人メールに送る。
  * - 確認済みかどうかはログイン（Supabaseの session_id）ごとに記録する。判定は server-auth の ownerNeeds2FA。
  * - コードは平文で保存しない。失敗が続いたら15分間ロックする。
+ * - コードを確認した端末は180日間記憶する（cookieに乱数トークン、DBにはそのハッシュ）。設定画面から取り消せる。
  */
 
 const OTP_TTL_MS = 10 * 60 * 1000;
@@ -25,6 +26,8 @@ const schema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("register_email"), personalEmail: z.string().trim().toLowerCase().email().max(320) }),
   z.object({ action: z.literal("confirm_email"), sessionId: z.string().uuid(), otp: z.string().regex(/^\d{6}$/) }),
   z.object({ action: z.literal("remove_email") }),
+  z.object({ action: z.literal("forget_this_device") }),
+  z.object({ action: z.literal("forget_all_devices") }),
 ]);
 
 type Db = Awaited<ReturnType<typeof requireMember>>["supabase"];
@@ -46,13 +49,35 @@ export async function POST(request: Request) {
     const personalEmail = registered.data?.personal_email ?? null;
 
     if (input.action === "get_status") {
-      const pending = await ownerNeeds2FA(supabase, member, authSessionId);
+      const pending = await ownerNeeds2FA(supabase, member, authSessionId, request);
       return json({ hasPersonalEmail: Boolean(personalEmail), maskedEmail: personalEmail ? maskEmail(personalEmail) : null, verified: !pending });
     }
 
     // 登録済みの個人メールを変える・外すのは、このログインで認証が済んでいるときだけ。
-    if ((input.action === "register_email" || input.action === "confirm_email" || input.action === "remove_email") && personalEmail && await ownerNeeds2FA(supabase, member, authSessionId)) {
+    if ((input.action === "register_email" || input.action === "confirm_email" || input.action === "remove_email") && personalEmail && await ownerNeeds2FA(supabase, member, authSessionId, request)) {
       return json({ error: "owner_2fa_required", message: "先に今の個人メールで認証してください。" }, 403);
+    }
+
+    // この端末の記憶を取り消す。認証前でもできる（自分の端末の記憶を消すだけなので安全）。
+    if (input.action === "forget_this_device") {
+      const token = trustTokenFromRequest(request);
+      if (token) {
+        const forgot = await supabase.from("owner_2fa_verifications").update({ expires_at: new Date().toISOString() }).eq("member_id", member.id).eq("auth_session_id", trustedDeviceKey(token));
+        if (forgot.error) throw forgot.error;
+        await audit(supabase, member, "owner_2fa_device_forgotten");
+      }
+      return withTrustCookie(json({ forgotten: true }), null);
+    }
+
+    // すべての端末の記憶を取り消す（端末をなくしたとき用）。今のログインで認証済みのときだけ。
+    if (input.action === "forget_all_devices") {
+      if (personalEmail && await ownerNeeds2FA(supabase, member, authSessionId, request)) {
+        return json({ error: "owner_2fa_required", message: "先に今の個人メールで認証してください。" }, 403);
+      }
+      const forgot = await supabase.from("owner_2fa_verifications").update({ expires_at: new Date().toISOString() }).eq("member_id", member.id).like("auth_session_id", "device:%").gt("expires_at", new Date().toISOString());
+      if (forgot.error) throw forgot.error;
+      await audit(supabase, member, "owner_2fa_all_devices_forgotten");
+      return withTrustCookie(json({ forgotten: true }), null);
     }
 
     if (input.action === "remove_email") {
@@ -112,10 +137,10 @@ export async function POST(request: Request) {
       const loginMark = await supabase.from("owner_2fa_verifications").insert({ club_id: member.club_id, member_id: member.id, session_id: crypto.randomUUID(), otp_hash: "", expires_at: now, verified_at: now, purpose: "login", auth_session_id: authSessionId });
       if (loginMark.error) throw loginMark.error;
       await audit(supabase, member, personalEmail ? "owner_2fa_email_changed" : "owner_2fa_enabled");
-      return json({ registered: true, maskedEmail: maskEmail(verification.target_email ?? "") });
+      return withTrustCookie(json({ registered: true, maskedEmail: maskEmail(verification.target_email ?? "") }), await rememberDevice(supabase, member));
     }
     await audit(supabase, member, "owner_2fa_verified");
-    return json({ verified: true });
+    return withTrustCookie(json({ verified: true }), await rememberDevice(supabase, member));
   } catch (error) {
     return apiError(error);
   }
@@ -184,6 +209,22 @@ async function audit(supabase: Db, member: Member, action: string) {
 
 function locked() {
   return json({ error: "rate_limited", message: "失敗が続いたため、15分間ロックしています。時間をおいてお試しください。" }, 429);
+}
+
+/** この端末を180日間記憶する。新しいトークンを作り、ハッシュをDBに保存して、cookieに入れる値を返す。 */
+async function rememberDevice(supabase: Db, member: Member) {
+  const token = crypto.randomBytes(32).toString("base64url");
+  const now = new Date();
+  const saved = await supabase.from("owner_2fa_verifications").insert({ club_id: member.club_id, member_id: member.id, session_id: crypto.randomUUID(), otp_hash: "", purpose: "login", auth_session_id: trustedDeviceKey(token), verified_at: now.toISOString(), expires_at: new Date(now.getTime() + OWNER_TRUSTED_DEVICE_MS).toISOString() });
+  if (saved.error) throw saved.error;
+  return token;
+}
+
+/** 端末記憶のcookieを付ける（tokenがnullなら消す）。JavaScriptからは読めないようにする。 */
+function withTrustCookie(response: Response, token: string | null) {
+  const maxAge = token ? Math.floor(OWNER_TRUSTED_DEVICE_MS / 1000) : 0;
+  response.headers.append("Set-Cookie", `${OWNER_TRUST_COOKIE}=${token ?? ""}; Path=/; Max-Age=${maxAge}; HttpOnly; Secure; SameSite=Lax`);
+  return response;
 }
 
 function json(body: unknown, status = 200) {
