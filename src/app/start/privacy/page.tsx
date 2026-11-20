@@ -54,9 +54,9 @@ const sections: { title: string; body: string[] }[] = [
 
 export default function PrivacyPage() {
   return (
-    <main className="mx-auto max-w-2xl px-4 py-8 text-[#1d2b22]">
+    <main className="mx-auto max-w-2xl px-4 py-8 text-[#1c252c]">
       <h1 className="text-2xl font-black">プライバシーポリシー</h1>
-      <p className="mt-2 text-sm text-[#5b6b60]">制定日：2026年10月8日</p>
+      <p className="mt-2 text-sm text-[#5a656c]">制定日：2026年10月8日</p>
       <div className="mt-6 grid gap-6">
         {sections.map((section) => (
           <section key={section.title} className="grid gap-2">
@@ -68,7 +68,7 @@ export default function PrivacyPage() {
         ))}
       </div>
       <p className="mt-8 text-sm">
-        <Link href="/start" className="font-bold text-[#176b45] underline">1st Penguinに戻る</Link>
+        <Link href="/start" className="font-bold text-[#0b84d8] underline">1st Penguinに戻る</Link>
       </p>
     </main>
   );

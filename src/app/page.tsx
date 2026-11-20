@@ -75,7 +75,7 @@ export default function Home() {
     return (
       <section className="card mx-auto max-w-lg p-6 text-center">
         <h1 className="text-2xl font-black">1st Penguinをはじめる</h1>
-        <p className="mt-2 text-sm text-[#68746d]">部員としてログインするか、幹部として新しい団体を作成してください。</p>
+        <p className="mt-2 text-sm text-[#676f75]">部員としてログインするか、幹部として新しい団体を作成してください。</p>
         <Link href="/start" className="btn-primary mt-5 w-full">ログイン・団体作成<ArrowRight size={18} /></Link>
       </section>
     );
@@ -141,25 +141,25 @@ export default function Home() {
     return (
       <div className="grid gap-6">
         <section className="card mx-auto max-w-md p-8 text-center">
-          <span className="mx-auto grid size-16 place-items-center rounded-2xl bg-[#e8f5ee] text-[#176b45]"><ShieldCheck size={32} /></span>
+          <span className="mx-auto grid size-16 place-items-center rounded-2xl bg-[#e6f4fd] text-[#0b84d8]"><ShieldCheck size={32} /></span>
           <h1 className="mt-4 text-2xl font-black">オーナー認証</h1>
-          <p className="mt-2 text-sm text-[#68746d]">セキュリティのため、登録済みの個人メールに認証コードを送信します。</p>
+          <p className="mt-2 text-sm text-[#676f75]">セキュリティのため、登録済みの個人メールに認証コードを送信します。</p>
           {twoFaStep === "idle" && (
             <button className="btn-primary mt-6 w-full" onClick={sendOwner2FA}>認証コードを送信</button>
           )}
           {twoFaStep === "sending" && (
-            <p className="mt-6 text-sm font-bold text-[#68746d]">送信しています…</p>
+            <p className="mt-6 text-sm font-bold text-[#676f75]">送信しています…</p>
           )}
           {(twoFaStep === "sent" || twoFaStep === "verifying") && (
             <div className="mt-6 grid gap-3">
-              <p className="text-sm text-[#68746d]">{twoFaMaskedEmail} に認証コードを送信しました。</p>
+              <p className="text-sm text-[#676f75]">{twoFaMaskedEmail} に認証コードを送信しました。</p>
               <input className="field text-center text-2xl tracking-[.3em]" type="text" inputMode="numeric" maxLength={6} placeholder="000000" value={twoFaOtp} onChange={e => setTwoFaOtp(e.target.value.replace(/\D/g, "").slice(0, 6))} />
               <button className="btn-primary w-full" disabled={twoFaStep === "verifying" || twoFaOtp.length !== 6} onClick={verifyOwner2FA}>{twoFaStep === "verifying" ? "確認中…" : "認証する"}</button>
-              <button className="text-sm font-bold text-[#68746d] underline" onClick={sendOwner2FA}>コードを再送信</button>
+              <button className="text-sm font-bold text-[#676f75] underline" onClick={sendOwner2FA}>コードを再送信</button>
             </div>
           )}
           {twoFaError && <p className="mt-3 text-sm font-bold text-[#a93830]">{twoFaError}</p>}
-          <p className="mt-6 text-xs text-[#68746d]">コードは組織Googleアカウントから送られます。届かないときは迷惑メールフォルダを確認してください。</p>
+          <p className="mt-6 text-xs text-[#676f75]">コードは組織Googleアカウントから送られます。届かないときは迷惑メールフォルダを確認してください。</p>
         </section>
       </div>
     );
@@ -176,9 +176,9 @@ export default function Home() {
           </h1>
         </div>
         {d.currentEvent && (
-          <div className="flex items-center gap-2 rounded-xl border border-[#dce4de] bg-white px-3 py-2 text-sm">
-            <CalendarClock size={15} className="text-[#68746d]" />
-            <span className="text-[#68746d]">今のイベント</span>
+          <div className="flex items-center gap-2 rounded-xl border border-[#dbe1e5] bg-white px-3 py-2 text-sm">
+            <CalendarClock size={15} className="text-[#676f75]" />
+            <span className="text-[#676f75]">今のイベント</span>
             <strong>{d.currentEvent.name}</strong>
           </div>
         )}
@@ -211,14 +211,14 @@ export default function Home() {
       )}
 
       {/* Tab switcher: お知らせ / バイト情報 */}
-      <div className="flex gap-1 rounded-xl bg-[#f1f3f1] p-1">
-        <button className={`flex-1 rounded-lg px-3 py-2 text-sm font-black transition ${tab === "announcements" ? "bg-white shadow-sm" : "text-[#68746d]"}`} onClick={() => setTab("announcements")}>
+      <div className="flex gap-1 rounded-xl bg-[#eff3f6] p-1">
+        <button className={`flex-1 rounded-lg px-3 py-2 text-sm font-black transition ${tab === "announcements" ? "bg-white shadow-sm" : "text-[#676f75]"}`} onClick={() => setTab("announcements")}>
           <Megaphone size={14} className="mr-1 inline" />お知らせ
-          {d.announcements.length > 0 && <span className="ml-1.5 text-xs font-normal text-[#68746d]">{d.announcements.length}</span>}
+          {d.announcements.length > 0 && <span className="ml-1.5 text-xs font-normal text-[#676f75]">{d.announcements.length}</span>}
         </button>
-        <button className={`flex-1 rounded-lg px-3 py-2 text-sm font-black transition ${tab === "jobs" ? "bg-white shadow-sm" : "text-[#68746d]"}`} onClick={() => setTab("jobs")}>
+        <button className={`flex-1 rounded-lg px-3 py-2 text-sm font-black transition ${tab === "jobs" ? "bg-white shadow-sm" : "text-[#676f75]"}`} onClick={() => setTab("jobs")}>
           <Briefcase size={14} className="mr-1 inline" />バイト情報
-          {d.jobPostings.length > 0 && <span className="ml-1.5 text-xs font-normal text-[#68746d]">{d.jobPostings.length}</span>}
+          {d.jobPostings.length > 0 && <span className="ml-1.5 text-xs font-normal text-[#676f75]">{d.jobPostings.length}</span>}
         </button>
       </div>
 
@@ -236,7 +236,7 @@ export default function Home() {
             <section className="card grid gap-3 p-5">
               <div className="flex items-center justify-between">
                 <h3 className="font-black">お知らせを投稿</h3>
-                <button onClick={() => setShowAnnForm(false)} className="rounded-lg p-1 hover:bg-[#f1f3f1]"><X size={18} /></button>
+                <button onClick={() => setShowAnnForm(false)} className="rounded-lg p-1 hover:bg-[#eff3f6]"><X size={18} /></button>
               </div>
               <input className="field" placeholder="タイトル" value={annTitle} onChange={e => setAnnTitle(e.target.value)} />
               <textarea className="field min-h-24" placeholder="本文" value={annBody} onChange={e => setAnnBody(e.target.value)} />
@@ -245,18 +245,18 @@ export default function Home() {
             </section>
           )}
           {!d.announcements.length ? (
-            <p className="card p-8 text-center text-sm text-[#68746d]">お知らせはまだありません</p>
+            <p className="card p-8 text-center text-sm text-[#676f75]">お知らせはまだありません</p>
           ) : (
             d.announcements.map(a => (
               <article key={a.id} className="card p-5">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      {a.pinned && <span className="rounded-full bg-[#176b45] px-2 py-0.5 text-[10px] font-black text-white">ピン</span>}
+                      {a.pinned && <span className="rounded-full bg-[#0b84d8] px-2 py-0.5 text-[10px] font-black text-white">ピン</span>}
                       <h2 className="text-lg font-black">{a.title}</h2>
                     </div>
-                    <p className="mt-2 whitespace-pre-wrap text-sm text-[#3a4a3e] [overflow-wrap:anywhere]">{a.body}</p>
-                    <p className="mt-3 text-xs text-[#8a938d]">
+                    <p className="mt-2 whitespace-pre-wrap text-sm text-[#39444b] [overflow-wrap:anywhere]">{a.body}</p>
+                    <p className="mt-3 text-xs text-[#898f94]">
                       {a.author?.name ?? "不明"} · {new Intl.DateTimeFormat("ja-JP", { month: "numeric", day: "numeric", hour: "numeric", minute: "numeric" }).format(new Date(a.published_at))}
                     </p>
                   </div>
@@ -284,7 +284,7 @@ export default function Home() {
             <section className="card grid gap-3 p-5">
               <div className="flex items-center justify-between">
                 <h3 className="font-black">バイト情報を投稿</h3>
-                <button onClick={() => setShowJobForm(false)} className="rounded-lg p-1 hover:bg-[#f1f3f1]"><X size={18} /></button>
+                <button onClick={() => setShowJobForm(false)} className="rounded-lg p-1 hover:bg-[#eff3f6]"><X size={18} /></button>
               </div>
               <input className="field" placeholder="タイトル" value={jobTitle} onChange={e => setJobTitle(e.target.value)} />
               <input className="field" placeholder="企業名" value={jobCompany} onChange={e => setJobCompany(e.target.value)} />
@@ -299,22 +299,22 @@ export default function Home() {
             </section>
           )}
           {!d.jobPostings.length ? (
-            <p className="card p-8 text-center text-sm text-[#68746d]">バイト情報はまだありません</p>
+            <p className="card p-8 text-center text-sm text-[#676f75]">バイト情報はまだありません</p>
           ) : (
             d.jobPostings.map(j => (
               <article key={j.id} className="card p-5">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <h2 className="text-lg font-black">{j.title}</h2>
-                    {j.company && <p className="text-sm font-bold text-[#176b45]">{j.company}</p>}
-                    <p className="mt-2 whitespace-pre-wrap text-sm text-[#3a4a3e] [overflow-wrap:anywhere]">{j.body}</p>
-                    <div className="mt-3 flex flex-wrap gap-3 text-xs text-[#68746d]">
+                    {j.company && <p className="text-sm font-bold text-[#0b84d8]">{j.company}</p>}
+                    <p className="mt-2 whitespace-pre-wrap text-sm text-[#39444b] [overflow-wrap:anywhere]">{j.body}</p>
+                    <div className="mt-3 flex flex-wrap gap-3 text-xs text-[#676f75]">
                       {j.hourly_rate && <span className="flex items-center gap-1"><JapaneseYen size={12} />{j.hourly_rate}</span>}
                       {j.location && <span className="flex items-center gap-1"><MapPin size={12} />{j.location}</span>}
                       {j.deadline && <span className="flex items-center gap-1"><Clock size={12} />〆切: {new Intl.DateTimeFormat("ja-JP", { month: "numeric", day: "numeric" }).format(new Date(j.deadline))}</span>}
                     </div>
-                    {j.contact_info && <p className="mt-2 text-xs text-[#68746d] [overflow-wrap:anywhere]">連絡先: {j.contact_info}</p>}
-                    <p className="mt-2 text-xs text-[#8a938d]">
+                    {j.contact_info && <p className="mt-2 text-xs text-[#676f75] [overflow-wrap:anywhere]">連絡先: {j.contact_info}</p>}
+                    <p className="mt-2 text-xs text-[#898f94]">
                       {j.author?.name ?? "不明"} · {new Intl.DateTimeFormat("ja-JP", { month: "numeric", day: "numeric" }).format(new Date(j.published_at))}
                     </p>
                   </div>

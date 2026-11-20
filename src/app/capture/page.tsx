@@ -16,7 +16,7 @@ function ModeSelector({ onSelect }: { onSelect: (mode: CaptureMode) => void }) {
     <div className="grid gap-6">
       <section>
         <h1 className="text-2xl font-black tracking-tight">名刺を撮影する</h1>
-        <p className="mt-1 text-sm text-[#68746d]">撮影モードを選んでスタート</p>
+        <p className="mt-1 text-sm text-[#676f75]">撮影モードを選んでスタート</p>
       </section>
 
       {summary && (summary.undecided > 0 || summary.overdue > 0) && (
@@ -46,30 +46,30 @@ function ModeSelector({ onSelect }: { onSelect: (mode: CaptureMode) => void }) {
 
       <section className="grid gap-3">
         <button onClick={() => onSelect("quick")} className="card flex items-center gap-4 p-5 text-left transition hover:shadow-md">
-          <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-[#e8f5ee] text-[#176b45]"><Zap size={24} /></span>
+          <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-[#e6f4fd] text-[#0b84d8]"><Zap size={24} /></span>
           <div className="min-w-0 flex-1">
             <h2 className="font-black">保存のみ（クイック）</h2>
-            <p className="mt-0.5 text-xs text-[#68746d]">名刺を撮影して素早く保存。メール下書きなし。</p>
+            <p className="mt-0.5 text-xs text-[#676f75]">名刺を撮影して素早く保存。メール下書きなし。</p>
           </div>
-          <ChevronRight size={18} className="shrink-0 text-[#68746d] opacity-50" />
+          <ChevronRight size={18} className="shrink-0 text-[#676f75] opacity-50" />
         </button>
 
         <button onClick={() => onSelect("important")} className="card flex items-center gap-4 p-5 text-left transition hover:shadow-md">
           <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-[#fff1d1] text-[#805813]"><FilePenLine size={24} /></span>
           <div className="min-w-0 flex-1">
             <h2 className="font-black">保存＋下書き作成（重要）</h2>
-            <p className="mt-0.5 text-xs text-[#68746d]">名刺を保存し、お礼メールの下書きを作成します。</p>
+            <p className="mt-0.5 text-xs text-[#676f75]">名刺を保存し、お礼メールの下書きを作成します。</p>
           </div>
-          <ChevronRight size={18} className="shrink-0 text-[#68746d] opacity-50" />
+          <ChevronRight size={18} className="shrink-0 text-[#676f75] opacity-50" />
         </button>
 
         <button onClick={() => onSelect("courtesy")} className="card flex items-center gap-4 p-5 text-left transition hover:shadow-md">
-          <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-[#e2f2e8] text-[#176b45]"><Mail size={24} /></span>
+          <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-[#e3f2fc] text-[#0b84d8]"><Mail size={24} /></span>
           <div className="min-w-0 flex-1">
             <h2 className="font-black">保存＋お礼送信（礼儀）</h2>
-            <p className="mt-0.5 text-xs text-[#68746d]">名刺を保存し、その場でお礼メールを送信します。</p>
+            <p className="mt-0.5 text-xs text-[#676f75]">名刺を保存し、その場でお礼メールを送信します。</p>
           </div>
-          <ChevronRight size={18} className="shrink-0 text-[#68746d] opacity-50" />
+          <ChevronRight size={18} className="shrink-0 text-[#676f75] opacity-50" />
         </button>
       </section>
     </div>
@@ -89,7 +89,7 @@ function CapturePageInner() {
 
   return (
     <div>
-      <button onClick={() => setMode(null)} className="mb-4 flex items-center gap-1 text-sm font-bold text-[#68746d] hover:text-[#3a4a3e]">
+      <button onClick={() => setMode(null)} className="mb-4 flex items-center gap-1 text-sm font-bold text-[#676f75] hover:text-[#39444b]">
         ← モード選択に戻る
       </button>
       <CaptureWizard key={`${mode}-${round}`} captureMode={mode} onRestart={() => setRound((n) => n + 1)} />
