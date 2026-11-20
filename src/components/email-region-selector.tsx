@@ -34,8 +34,8 @@ export function EmailRegionSelector({ imageUrl, busy, onCancel, onRead, onRotate
   function onPointerUp() { start.current = null; }
   const usable = Boolean(region && region.width >= minimumRegionSize && region.height >= minimumRegionSize);
 
-  return <div className="mt-5 rounded-2xl border-2 border-[#8ba797] bg-[#f2f7f3] p-4">
-    <div className="flex items-start gap-3"><Crop className="mt-0.5 shrink-0 text-[#176b45]"/><div><h3 className="font-black">メールアドレス部分を指定</h3><p className="mt-1 text-xs leading-5 text-[#5f6c64]">画像上のメールアドレスを指で囲んでください。選んだ範囲だけを拡大・高コントラスト化して再OCRします。</p></div></div>
+  return <div className="mt-5 rounded-2xl border-2 border-[#899ca9] bg-[#f2f7f3] p-4">
+    <div className="flex items-start gap-3"><Crop className="mt-0.5 shrink-0 text-[#0b84d8]"/><div><h3 className="font-black">メールアドレス部分を指定</h3><p className="mt-1 text-xs leading-5 text-[#5e676d]">画像上のメールアドレスを指で囲んでください。選んだ範囲だけを拡大・高コントラスト化して再OCRします。</p></div></div>
     <div className="mt-3 flex gap-2"><button type="button" className="btn-secondary min-h-10 flex-1 py-1 text-xs" onClick={() => onRotate(-90)} disabled={busy}><RotateCcw size={16}/>左へ90°</button><button type="button" className="btn-secondary min-h-10 flex-1 py-1 text-xs" onClick={() => onRotate(90)} disabled={busy}><RotateCw size={16}/>右へ90°</button></div>
     <div className="relative mt-3 select-none overflow-hidden rounded-xl border bg-white touch-none" onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerUp} role="img" aria-label="メールアドレス部分をドラッグして選択">
       {/* eslint-disable-next-line @next/next/no-img-element -- user-selected local blob */}

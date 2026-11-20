@@ -45,7 +45,7 @@ export function UpdateBanner() {
       <button
         type="button"
         onClick={() => window.location.reload()}
-        className="flex items-center gap-2 rounded-full bg-[#176b45] px-5 py-3 text-sm font-black text-white shadow-lg"
+        className="flex items-center gap-2 rounded-full bg-[#0b84d8] px-5 py-3 text-sm font-black text-white shadow-lg"
       >
         <RefreshCw size={16} />
         新しいバージョンがあります・タップで更新

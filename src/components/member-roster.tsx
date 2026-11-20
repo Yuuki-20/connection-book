@@ -20,7 +20,7 @@ type Props = {
 type Pending = { id: string; kind: "suspend" | "withdraw" | "reject" | "leave"; reason: string; days: number };
 
 const date = (value: string | null) => (value ? new Intl.DateTimeFormat("ja-JP", { dateStyle: "medium", timeZone: "Asia/Tokyo" }).format(new Date(value)) : "—");
-const statusTone: Record<MemberStatus, string> = { pending: "bg-[#fff6df] text-[#a25c00]", active: "bg-[#e2f2e8] text-[#176b45]", on_leave: "bg-[#eef1f6] text-[#4a5568]", suspended: "bg-[#fff0ee] text-[#a93830]", withdrawn: "bg-[#f3f3f3] text-[#7a7a7a]" };
+const statusTone: Record<MemberStatus, string> = { pending: "bg-[#fff6df] text-[#a25c00]", active: "bg-[#e3f2fc] text-[#0b84d8]", on_leave: "bg-[#eef1f6] text-[#4a5568]", suspended: "bg-[#fff0ee] text-[#a93830]", withdrawn: "bg-[#f3f3f3] text-[#7a7a7a]" };
 
 /**
  * 部員名簿（規約第12条）と、入部承認（第7条）・休部（第10条）・退部（第11条）・活動停止（第35・36条）・
@@ -38,22 +38,22 @@ export function MemberRoster({ me, members, libraryRequests, canSuspend, busy, m
 
   return <section className="card p-5 lg:col-span-2">
     <h2 className="flex items-center gap-2 font-black"><Users />部員名簿・権限</h2>
-    <p className="mt-1 text-xs text-[#68746d]">規約に基づく名簿です。入部は承認制、退部するとGoogle連携・端末・名刺の閲覧権限が自動で外れます。</p>
+    <p className="mt-1 text-xs text-[#676f75]">規約に基づく名簿です。入部は承認制、退部するとGoogle連携・端末・名刺の閲覧権限が自動で外れます。</p>
 
     {applicants.length > 0 && <div className="mt-4 rounded-2xl border-2 border-[#dc9b35] bg-[#fff6df] p-4">
       <h3 className="flex items-center gap-2 text-sm font-black"><UserPlus size={17} />入部申請（{applicants.length}件）</h3>
       <div className="mt-3 grid gap-2">{applicants.map((m) => <div key={m.id} className="rounded-xl bg-white p-3">
-        <div className="flex flex-wrap items-center gap-2"><div className="min-w-0 basis-full sm:basis-auto sm:flex-1"><strong>{m.name}</strong><p className="break-all text-xs text-[#68746d]">{m.contact_email || "メール不明"}・{m.role || "肩書なし"}・申請 {date(m.created_at)}</p></div>
+        <div className="flex flex-wrap items-center gap-2"><div className="min-w-0 basis-full sm:basis-auto sm:flex-1"><strong>{m.name}</strong><p className="break-all text-xs text-[#676f75]">{m.contact_email || "メール不明"}・{m.role || "肩書なし"}・申請 {date(m.created_at)}</p></div>
           <button className="btn-primary" disabled={busy} onClick={() => run({ action: "approve_member", memberId: m.id })}><Check size={17} />承認</button>
           <button className="btn-secondary" disabled={busy} onClick={() => setPending({ id: m.id, kind: "reject", reason: "", days: 30 })}>承認しない</button></div>
         {pending?.id === m.id && pending.kind === "reject" && <ReasonForm pending={pending} setPending={setPending} busy={busy} label="承認しない理由（任意）" confirmLabel="承認しない" onConfirm={() => run({ action: "reject_member", memberId: m.id, reason: pending.reason })} />}
       </div>)}</div>
     </div>}
 
-    {libraryRequests.length > 0 && <div className="mt-4 rounded-2xl border border-[#cfe0d5] bg-[#f1faf4] p-4">
+    {libraryRequests.length > 0 && <div className="mt-4 rounded-2xl border border-[#ced9e1] bg-[#eef7fe] p-4">
       <h3 className="flex items-center gap-2 text-sm font-black"><BookUser size={17} />名刺ライブラリの閲覧申請（{libraryRequests.length}件）</h3>
       <div className="mt-3 grid gap-2">{libraryRequests.map((r) => <div key={r.id} className="flex flex-wrap items-center gap-2 rounded-xl bg-white p-3">
-        <div className="min-w-0 basis-full sm:basis-auto sm:flex-1"><strong>{byId.get(r.member_id)?.name ?? "部員"}</strong><p className="text-xs text-[#68746d]">理由：{r.reason}・{date(r.created_at)}</p></div>
+        <div className="min-w-0 basis-full sm:basis-auto sm:flex-1"><strong>{byId.get(r.member_id)?.name ?? "部員"}</strong><p className="text-xs text-[#676f75]">理由：{r.reason}・{date(r.created_at)}</p></div>
         <button className="btn-primary" disabled={busy} onClick={() => run({ action: "decide_library_access", requestId: r.id, approve: true })}><Check size={17} />許可</button>
         <button className="btn-secondary" disabled={busy} onClick={() => run({ action: "decide_library_access", requestId: r.id, approve: false })}><X size={17} />見送り</button>
       </div>)}</div>
@@ -62,19 +62,19 @@ export function MemberRoster({ me, members, libraryRequests, canSuspend, busy, m
     {/* スマホでも横スクロールしないよう、1人1枚のカードで縦に並べる（PCでは2列）。 */}
     <div className="mt-4 grid gap-3 md:grid-cols-2">{roster.map((m) => <article key={m.id} className="min-w-0 rounded-2xl border p-4">
       <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0"><strong className="break-words">{m.name}</strong>{m.id === me.id && <span className="ml-1 text-xs text-[#68746d]">（自分）</span>}
-          <p className="break-all text-xs text-[#68746d]">{m.contact_email || "連絡先未登録"}</p>{m.role && <p className="text-xs text-[#68746d]">{m.role}</p>}</div>
+        <div className="min-w-0"><strong className="break-words">{m.name}</strong>{m.id === me.id && <span className="ml-1 text-xs text-[#676f75]">（自分）</span>}
+          <p className="break-all text-xs text-[#676f75]">{m.contact_email || "連絡先未登録"}</p>{m.role && <p className="text-xs text-[#676f75]">{m.role}</p>}</div>
         <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-bold ${statusTone[m.status]}`}>{statusLabel[m.status]}</span>
       </div>
       {m.status === "suspended" && <p className="mt-1 text-xs text-[#a93830]">{date(m.suspended_until)}まで</p>}
-      {m.status_reason && m.status !== "active" && <p className="mt-1 text-xs text-[#68746d]">理由：{m.status_reason}</p>}
+      {m.status_reason && m.status !== "active" && <p className="mt-1 text-xs text-[#676f75]">理由：{m.status_reason}</p>}
       <dl className="mt-3 grid grid-cols-[5.5rem_1fr] items-center gap-x-2 gap-y-2 text-sm">
-        <dt className="text-xs text-[#68746d]">役職</dt>
+        <dt className="text-xs text-[#676f75]">役職</dt>
         <dd>{owner && m.access_role !== "owner" && m.id !== me.id && (m.status === "active" || m.status === "on_leave")
           ? <select className="field w-full py-1 text-sm" value={m.position} disabled={busy} onChange={(e) => run({ action: "change_position", memberId: m.id, position: e.target.value })}>{assignablePositions.map((p) => <option key={p} value={p}>{positionLabel[p]}</option>)}</select>
           : <span className="font-bold">{positionLabel[m.position]}</span>}</dd>
-        <dt className="text-xs text-[#68746d]">入部日</dt><dd className="text-xs">{date(m.joined_at)}{m.status === "withdrawn" && `（退部 ${date(m.left_at)}）`}</dd>
-        <dt className="text-xs text-[#68746d]">名刺の詳細</dt>
+        <dt className="text-xs text-[#676f75]">入部日</dt><dd className="text-xs">{date(m.joined_at)}{m.status === "withdrawn" && `（退部 ${date(m.left_at)}）`}</dd>
+        <dt className="text-xs text-[#676f75]">名刺の詳細</dt>
         <dd className="text-xs">{m.access_role !== "member" ? "幹部（全件）" : m.status === "withdrawn" ? "—" : <label className="flex items-center gap-1 font-bold"><input type="checkbox" className="size-4" checked={m.library_access} disabled={busy} onChange={(e) => run({ action: "set_library_access", memberId: m.id, granted: e.target.checked })} /><KeyRound size={13} />{m.library_access ? "閲覧可" : "名前・所属のみ"}</label>}</dd>
       </dl>
       {canActOn(m) && m.status !== "withdrawn" && <div className="mt-3 flex flex-wrap gap-2 border-t pt-3">
@@ -88,7 +88,7 @@ export function MemberRoster({ me, members, libraryRequests, canSuspend, busy, m
       {pending?.id === m.id && pending.kind === "suspend" && <ReasonForm pending={pending} setPending={setPending} busy={busy} label="本人に通知する理由（必須）" confirmLabel="活動停止にする" requireReason withDays onConfirm={() => run({ action: "set_member_status", memberId: m.id, status: "suspended", reason: pending.reason, suspendedUntil: new Date(Date.now() + pending.days * 86400000).toISOString() })} note="一時制限は30日以内。7日以内に幹部会へ報告し、継続には幹部会の承認が必要です（第35条）。期限が来ると自動で解除されます。" />}
       {pending?.id === m.id && pending.kind === "withdraw" && <ReasonForm pending={pending} setPending={setPending} busy={busy} label="メモ（任意）" confirmLabel="退部にする" danger onConfirm={() => run({ action: "set_member_status", memberId: m.id, status: "withdrawn", reason: pending.reason })} note="Google連携・登録端末・名刺の閲覧権限を解除します。登録した名刺や送信履歴は部に残ります（第11条）。" />}
     </article>)}</div>
-    <button className="mt-3 text-xs font-bold text-[#176b45] underline" onClick={() => setShowWithdrawn(!showWithdrawn)}>{showWithdrawn ? "退部者を隠す" : "退部者も表示"}</button>
+    <button className="mt-3 text-xs font-bold text-[#0b84d8] underline" onClick={() => setShowWithdrawn(!showWithdrawn)}>{showWithdrawn ? "退部者を隠す" : "退部者も表示"}</button>
   </section>;
 }
 
@@ -99,7 +99,7 @@ function ReasonForm({ pending, setPending, busy, label, confirmLabel, onConfirm,
   return <div className="mt-2 grid gap-2 rounded-xl border p-3">
     <label className="label text-xs">{label}<input className="field" value={pending.reason} onChange={(e) => setPending({ ...pending, reason: e.target.value })} /></label>
     {withDays && <label className="label text-xs">停止期間（日）<input className="field w-24" type="number" min={1} max={30} value={pending.days} onChange={(e) => setPending({ ...pending, days: Math.max(1, Math.min(30, Number(e.target.value) || 1)) })} /></label>}
-    {note && <p className="text-xs text-[#68746d]">{note}</p>}
+    {note && <p className="text-xs text-[#676f75]">{note}</p>}
     <div className="flex gap-2"><button className="btn-secondary" disabled={busy} onClick={() => setPending(null)}>やめる</button><button className={danger ? "btn-danger" : "btn-primary"} disabled={busy || (requireReason && !pending.reason.trim())} onClick={onConfirm}>{confirmLabel}</button></div>
   </div>;
 }

@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { AppShell } from "@/components/app-shell";
 import { ServiceWorkerRegistration } from "@/components/service-worker-registration";
 import { UpdateBanner } from "@/components/update-banner";
@@ -13,6 +13,8 @@ export const metadata: Metadata = {
   formatDetection: { telephone: false },
   icons: { icon: "/favicon.ico", apple: "/apple-touch-icon.png" },
 };
+
+export const viewport: Viewport = { themeColor: "#0b84d8" };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

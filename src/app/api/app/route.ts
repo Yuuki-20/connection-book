@@ -156,16 +156,24 @@ export async function GET(request: Request) {
       const manager = member.access_role === "owner" || member.access_role === "admin";
       const showPast = url.searchParams.get("showPast") === "true";
       const kind = url.searchParams.get("kind") === "support" ? "support" : "contest";
-      let query = supabase.from("business_contests").select("id,kind,source,title,organizer,body,url,event_date,deadline,location,is_active,published_at,author:members!business_contests_author_member_id_fkey(name)").eq("club_id", member.club_id).eq("kind", kind);
-      if (kind === "support") {
-        // 支援は締切がない「いつでも使える」もの。新しく載ったものから並べる。
-        const result = await query.eq("is_active", true).order("published_at", { ascending: false }).limit(100);
-        throwFirst(result);
-        return Response.json({ businessContests: result.data ?? [], canManage: manager });
+      // 支援タブ用の列（kind/source）を足すSQLがまだ実行されていないDBでも、ビジコンタブは今まで通り表示する。
+      const run = async (withKind: boolean) => {
+        const cols: string = `id,${withKind ? "kind,source," : ""}title,organizer,body,url,event_date,deadline,location,is_active,published_at,author:members!business_contests_author_member_id_fkey(name)`;
+        let query = supabase.from("business_contests").select(cols).eq("club_id", member.club_id);
+        if (withKind) query = query.eq("kind", kind);
+        if (kind === "support") {
+          // 支援は締切がない「いつでも使える」もの。新しく載ったものから並べる。
+          return query.eq("is_active", true).order("published_at", { ascending: false }).limit(100);
+        }
+        // 終わったもの＝締切を過ぎたもの。締切がないものは開催日を過ぎたら終わり扱い。
+        if (!showPast) { const now = new Date().toISOString(); query = query.eq("is_active", true).or(`deadline.gte."${now}",and(deadline.is.null,event_date.is.null),and(deadline.is.null,event_date.gte."${now}")`); }
+        return query.order("event_date", { ascending: true, nullsFirst: false }).limit(100);
+      };
+      let result = await run(true);
+      if (result.error && isMissingColumn(result.error)) {
+        if (kind === "support") return Response.json({ businessContests: [], canManage: manager, setupNeeded: true });
+        result = await run(false);
       }
-      // 終わったもの＝締切を過ぎたもの。締切がないものは開催日を過ぎたら終わり扱い。
-      if (!showPast) { const now = new Date().toISOString(); query = query.eq("is_active", true).or(`deadline.gte."${now}",and(deadline.is.null,event_date.is.null),and(deadline.is.null,event_date.gte."${now}")`); }
-      const result = await query.order("event_date", { ascending: true, nullsFirst: false }).limit(100);
       throwFirst(result);
       return Response.json({ businessContests: result.data ?? [], canManage: manager });
     }
@@ -373,6 +381,9 @@ function throwFirst(...results: Array<{ error: unknown }>) {
   const error = results.find((result) => result.error)?.error;
   if (error) throw error;
 }
+
+/** 列がまだ無い（SQL未実行）ときのエラーか。 */
+function isMissingColumn(error:{code?:string;message?:string}){return error.code==="42703"||error.code==="PGRST204"||/column .* does not exist|Could not find the .* column/i.test(error.message??"")}
 
 async function audit(supabase:Awaited<ReturnType<typeof requireMember>>["supabase"],member:{id:string;club_id:string},action:string,entityType:string,entityId:string|null,metadata:Record<string,unknown>={}){const result=await supabase.from("audit_logs").insert({club_id:member.club_id,actor_member_id:member.id,action,entity_type:entityType,entity_id:entityId,metadata});throwFirst(result)}
 

@@ -54,9 +54,9 @@ const EVENT_TYPE_CONFIG: Record<
 > = {
   regular: {
     label: "定例会",
-    bg: "bg-[#d4edda]",
-    text: "text-[#155724]",
-    dot: "bg-[#28a745]",
+    bg: "bg-[#d3e9f8]",
+    text: "text-[#103c5c]",
+    dot: "bg-[#1e74b1]",
   },
   guest: {
     label: "ゲスト参加回",
@@ -174,17 +174,17 @@ function EventDetailModal({
               {cfg.label}
             </span>
             {isSelected && (
-              <span className="rounded-full bg-[#176b45] px-2 py-0.5 text-[10px] font-black text-white">
+              <span className="rounded-full bg-[#0b84d8] px-2 py-0.5 text-[10px] font-black text-white">
                 現在のイベント
               </span>
             )}
           </div>
-          <button onClick={onClose} className="rounded-lg p-1 hover:bg-[#f1f3f1]">
+          <button onClick={onClose} className="rounded-lg p-1 hover:bg-[#eff3f6]">
             <X size={18} />
           </button>
         </div>
         <h3 className="text-xl font-black">{event.name}</h3>
-        <div className="mt-2 space-y-1 text-sm text-[#6e7972]">
+        <div className="mt-2 space-y-1 text-sm text-[#6d757a]">
           <p className="flex items-center gap-1.5">
             <Clock size={14} />
             {formatRange(event.starts_at, event.ends_at, event.all_day)}
@@ -197,10 +197,10 @@ function EventDetailModal({
           )}
         </div>
         {event.description && (
-          <p className="mt-3 text-sm text-[#68746d]">{event.description}</p>
+          <p className="mt-3 text-sm text-[#676f75]">{event.description}</p>
         )}
         {contactCount > 0 && (
-          <p className="mt-3 flex items-center gap-1.5 text-sm font-bold text-[#176b45]">
+          <p className="mt-3 flex items-center gap-1.5 text-sm font-bold text-[#0b84d8]">
             <Users size={14} />
             交換人数: {contactCount}名
           </p>
@@ -230,7 +230,7 @@ function EventDetailModal({
           )}
           {canManage && (
             <button
-              className="rounded-xl border border-[#cfe0d5] px-3 py-2 text-sm font-bold text-[#176b45] transition hover:bg-[#f1faf4]"
+              className="rounded-xl border border-[#ced9e1] px-3 py-2 text-sm font-bold text-[#0b84d8] transition hover:bg-[#eef7fe]"
               disabled={busy}
               onClick={() => onEdit(event)}
             >
@@ -320,7 +320,7 @@ function deadlineLabel(deadline: string | null): { text: string; color: string }
   if (days <= 0) { const time = jstTime(new Date(deadline)); return { text: time === "23:59" ? "今日締切" : `今日 ${time} 締切`, color: "bg-[#fde8e8] text-[#a93830]" }; }
   if (days <= 3) return { text: `あと${days}日`, color: "bg-[#fde8e8] text-[#a93830]" };
   if (days <= 7) return { text: `あと${days}日`, color: "bg-[#fff4dc] text-[#8b6118]" };
-  return { text: `あと${days}日`, color: "bg-[#e8f5ee] text-[#176b45]" };
+  return { text: `あと${days}日`, color: "bg-[#e6f4fd] text-[#0b84d8]" };
 }
 
 /** 種類ごとの表示の言葉。ビジコン＝締切のあるもの、支援＝いつでも使えるもの。 */
@@ -405,9 +405,9 @@ function BizconView({ canManage, kind = "contest" }: { canManage: boolean; kind?
       {/* Toggle past items */}
       <div className="flex items-center justify-between">
         {isSupport ? (
-          <p className="text-sm font-bold text-[#68746d]">締切のない、いつでも使える支援です。</p>
+          <p className="text-sm font-bold text-[#676f75]">締切のない、いつでも使える支援です。</p>
         ) : (
-          <label className="flex items-center gap-2 text-sm font-bold text-[#68746d]">
+          <label className="flex items-center gap-2 text-sm font-bold text-[#676f75]">
             <input type="checkbox" checked={showPast} onChange={e => setShowPast(e.target.checked)} className="rounded" />
             過去のビジコンも表示
           </label>
@@ -423,7 +423,7 @@ function BizconView({ canManage, kind = "contest" }: { canManage: boolean; kind?
         <section className="card grid gap-3 p-5">
           <div className="flex items-center justify-between">
             <h3 className="font-black">{editingId ? `${text.noun}を編集` : `${text.noun}を追加`}</h3>
-            <button onClick={resetForm} className="rounded-lg p-1 hover:bg-[#f1f3f1]" aria-label="閉じる"><X size={18} /></button>
+            <button onClick={resetForm} className="rounded-lg p-1 hover:bg-[#eff3f6]" aria-label="閉じる"><X size={18} /></button>
           </div>
           <input className="field" placeholder={text.title} value={title} onChange={e => setTitle(e.target.value)} />
           <input className="field" placeholder={text.organizer} value={organizer} onChange={e => setOrganizer(e.target.value)} />
@@ -472,8 +472,8 @@ function BizconView({ canManage, kind = "contest" }: { canManage: boolean; kind?
                       <h3 className="text-lg font-black">{c.title}</h3>
                     </div>
                     {c.organizer && <p className="mt-0.5 text-sm font-bold text-[#6b3fa0]">{c.organizer}</p>}
-                    {c.body && <p className="mt-2 whitespace-pre-wrap text-sm text-[#3a4a3e] [overflow-wrap:anywhere]">{c.body}</p>}
-                    <div className="mt-3 flex flex-wrap gap-3 text-xs text-[#68746d]">
+                    {c.body && <p className="mt-2 whitespace-pre-wrap text-sm text-[#39444b] [overflow-wrap:anywhere]">{c.body}</p>}
+                    <div className="mt-3 flex flex-wrap gap-3 text-xs text-[#676f75]">
                       {eventD && (
                         <span className="flex items-center gap-1">
                           <CalendarDays size={12} />
@@ -494,7 +494,7 @@ function BizconView({ canManage, kind = "contest" }: { canManage: boolean; kind?
                       )}
                     </div>
                     {/^https?:\/\//i.test(c.url) && (
-                      <a href={c.url} target="_blank" rel="noopener noreferrer" className="mt-2 inline-block text-xs font-bold text-[#176b45] underline">
+                      <a href={c.url} target="_blank" rel="noopener noreferrer" className="mt-2 inline-block text-xs font-bold text-[#0b84d8] underline">
                         詳細を見る →
                       </a>
                     )}
@@ -502,7 +502,7 @@ function BizconView({ canManage, kind = "contest" }: { canManage: boolean; kind?
                 </div>
                 {canManage && (
                   <div className="flex shrink-0 gap-1">
-                    <button className="rounded-lg p-2 text-[#176b45] hover:bg-[#f1faf4]" disabled={busy} onClick={() => startEdit(c)} aria-label="編集">
+                    <button className="rounded-lg p-2 text-[#0b84d8] hover:bg-[#eef7fe]" disabled={busy} onClick={() => startEdit(c)} aria-label="編集">
                       <Pencil size={16} />
                     </button>
                     <button className="rounded-lg p-2 text-[#a93830] hover:bg-[#fff0ee]" disabled={busy} onClick={() => deleteContest(c.id)} aria-label="削除">
@@ -778,7 +778,7 @@ export default function EventsPage() {
         <section className="card mt-4 grid gap-3 p-5">
           <div className="flex items-center justify-between">
             <h3 className="font-black">{editingId ? "イベントを編集" : "イベントを作成"}</h3>
-            <button type="button" onClick={closeForm} className="rounded-lg p-1 hover:bg-[#f1f3f1]" aria-label="閉じる"><X size={18} /></button>
+            <button type="button" onClick={closeForm} className="rounded-lg p-1 hover:bg-[#eff3f6]" aria-label="閉じる"><X size={18} /></button>
           </div>
           <input
             className="field"
@@ -797,7 +797,7 @@ export default function EventsPage() {
                   className={`rounded-lg border-2 px-3 py-2 text-sm font-bold transition ${
                     eventType === key
                       ? `${cfg.bg} ${cfg.text} border-current`
-                      : "border-[#e5e7e5] text-[#68746d]"
+                      : "border-[#e5e7e5] text-[#676f75]"
                   }`}
                 >
                   <span className={`mr-1.5 inline-block size-2.5 rounded-full ${cfg.dot}`} />
@@ -866,34 +866,34 @@ export default function EventsPage() {
       )}
 
       {/* ── View tabs: カレンダー / リスト ── */}
-      <div className="mt-6 flex gap-1 rounded-xl bg-[#f1f3f1] p-1">
+      <div className="mt-6 flex gap-1 rounded-xl bg-[#eff3f6] p-1">
         <button
-          className={`flex-1 whitespace-nowrap rounded-lg px-2 py-2 text-sm font-black transition ${view === "calendar" ? "bg-white shadow-sm" : "text-[#68746d]"}`}
+          className={`flex-1 whitespace-nowrap rounded-lg px-2 py-2 text-sm font-black transition ${view === "calendar" ? "bg-white shadow-sm" : "text-[#676f75]"}`}
           onClick={() => setView("calendar")}
         >
           <CalendarDays size={14} className="mr-1 inline" />
           <span className="whitespace-nowrap">カレンダー</span>
         </button>
         <button
-          className={`flex-1 whitespace-nowrap rounded-lg px-2 py-2 text-sm font-black transition ${view === "list" ? "bg-white shadow-sm" : "text-[#68746d]"}`}
+          className={`flex-1 whitespace-nowrap rounded-lg px-2 py-2 text-sm font-black transition ${view === "list" ? "bg-white shadow-sm" : "text-[#676f75]"}`}
           onClick={() => setView("list")}
         >
           リスト
           {localEvents.length > 0 && (
-            <span className="ml-1.5 text-xs font-normal text-[#68746d]">
+            <span className="ml-1.5 text-xs font-normal text-[#676f75]">
               {localEvents.length}
             </span>
           )}
         </button>
         <button
-          className={`flex-1 whitespace-nowrap rounded-lg px-2 py-2 text-sm font-black transition ${view === "bizcon" ? "bg-white shadow-sm" : "text-[#68746d]"}`}
+          className={`flex-1 whitespace-nowrap rounded-lg px-2 py-2 text-sm font-black transition ${view === "bizcon" ? "bg-white shadow-sm" : "text-[#676f75]"}`}
           onClick={() => setView("bizcon")}
         >
           <Trophy size={14} className="mr-1 inline" />
           ビジコン
         </button>
         <button
-          className={`flex-1 whitespace-nowrap rounded-lg px-2 py-2 text-sm font-black transition ${view === "support" ? "bg-white shadow-sm" : "text-[#68746d]"}`}
+          className={`flex-1 whitespace-nowrap rounded-lg px-2 py-2 text-sm font-black transition ${view === "support" ? "bg-white shadow-sm" : "text-[#676f75]"}`}
           onClick={() => setView("support")}
         >
           <LifeBuoy size={14} className="mr-1 inline" />
@@ -908,7 +908,7 @@ export default function EventsPage() {
           <div className="mb-4 flex items-center justify-between">
             <button
               onClick={prevMonth}
-              className="rounded-lg p-2 hover:bg-[#f1f3f1]"
+              className="rounded-lg p-2 hover:bg-[#eff3f6]"
             >
               <ChevronLeft size={20} />
             </button>
@@ -916,20 +916,20 @@ export default function EventsPage() {
               <h2 className="text-xl font-black">
                 {MONTH_NAMES[calMonth]} &apos;{String(calYear).slice(2)}
               </h2>
-              <p className="text-xs text-[#68746d]">
+              <p className="text-xs text-[#676f75]">
                 {calYear}年{calMonth + 1}月 スケジュール
               </p>
             </div>
             <div className="flex items-center gap-1">
               <button
                 onClick={goToday}
-                className="rounded-lg px-2 py-1 text-xs font-bold text-[#176b45] hover:bg-[#e2f2e8]"
+                className="rounded-lg px-2 py-1 text-xs font-bold text-[#0b84d8] hover:bg-[#e3f2fc]"
               >
                 今日
               </button>
               <button
                 onClick={nextMonth}
-                className="rounded-lg p-2 hover:bg-[#f1f3f1]"
+                className="rounded-lg p-2 hover:bg-[#eff3f6]"
               >
                 <ChevronRight size={20} />
               </button>
@@ -958,7 +958,7 @@ export default function EventsPage() {
                     ? "text-[#dc3545]"
                     : i === 6
                       ? "text-[#007bff]"
-                      : "text-[#68746d]"
+                      : "text-[#676f75]"
                 }`}
               >
                 {w}
@@ -967,7 +967,7 @@ export default function EventsPage() {
           </div>
 
           {data.personalCalendarConnected && (
-            <p className={`px-3 py-1.5 text-[11px] ${data.personalCalendarError ? "text-[#a13b32]" : "text-[#68746d]"}`}>
+            <p className={`px-3 py-1.5 text-[11px] ${data.personalCalendarError ? "text-[#a13b32]" : "text-[#676f75]"}`}>
               {data.personalCalendarError ? `個人Googleカレンダーを読み込めませんでした（${data.personalCalendarError}）` : "灰色の予定は、あなたの個人Googleカレンダーの予定です（あなたにしか見えません）。"}
             </p>
           )}
@@ -993,7 +993,7 @@ export default function EventsPage() {
                       !cell.isCurrentMonth
                         ? "text-[#ccc]"
                         : isToday
-                          ? "inline-flex size-6 items-center justify-center rounded-full bg-[#176b45] text-white ml-auto"
+                          ? "inline-flex size-6 items-center justify-center rounded-full bg-[#0b84d8] text-white ml-auto"
                           : dayOfWeek === 0
                             ? "text-[#dc3545]"
                             : dayOfWeek === 6
@@ -1012,7 +1012,7 @@ export default function EventsPage() {
                       />
                     ))}
                     {dayEvents.length > 3 && (
-                      <span className="text-center text-[9px] font-bold text-[#68746d]">
+                      <span className="text-center text-[9px] font-bold text-[#676f75]">
                         +{dayEvents.length - 3}件
                       </span>
                     )}
@@ -1024,13 +1024,13 @@ export default function EventsPage() {
                         rel="noreferrer"
                         onClick={(e) => e.stopPropagation()}
                         title="あなたの個人Googleカレンダーの予定（あなたにしか見えません）"
-                        className="w-full rounded-md bg-[#eceeed] px-1.5 py-0.5 text-left text-[10px] leading-tight text-[#5b625e] hover:opacity-80"
+                        className="w-full rounded-md bg-[#eceeed] px-1.5 py-0.5 text-left text-[10px] leading-tight text-[#5a5f63] hover:opacity-80"
                       >
                         <span className="line-clamp-1">{ev.name}</span>
                       </a>
                     ))}
                     {(personalByDate.get(key)?.length ?? 0) > 2 && (
-                      <span className="text-center text-[9px] text-[#8a918d]">個人 +{(personalByDate.get(key)?.length ?? 0) - 2}件</span>
+                      <span className="text-center text-[9px] text-[#898e92]">個人 +{(personalByDate.get(key)?.length ?? 0) - 2}件</span>
                     )}
                   </div>
                 </div>
@@ -1065,18 +1065,18 @@ export default function EventsPage() {
                             {cfg.label}
                           </span>
                           {selected && (
-                            <span className="rounded-full bg-[#176b45] px-2 py-0.5 text-[10px] font-black text-white">
+                            <span className="rounded-full bg-[#0b84d8] px-2 py-0.5 text-[10px] font-black text-white">
                               現在のイベント
                             </span>
                           )}
                         </div>
                         <h2 className="mt-1 text-lg font-black">{e.name}</h2>
-                        <p className="text-xs text-[#6e7972]">
+                        <p className="text-xs text-[#6d757a]">
                           {formatRange(e.starts_at, e.ends_at, e.all_day)}
                           {e.location && ` · ${e.location}`}
                         </p>
                         {e.description && (
-                          <p className="mt-1 text-xs text-[#68746d]">
+                          <p className="mt-1 text-xs text-[#676f75]">
                             {e.description.slice(0, 120)}
                             {e.description.length > 120 && "…"}
                           </p>
@@ -1108,7 +1108,7 @@ export default function EventsPage() {
                       )}
                       {data.canManage && (
                         <button
-                          className="rounded-lg border border-[#cfe0d5] px-2 py-1 text-xs font-bold text-[#176b45] transition hover:bg-[#f1faf4]"
+                          className="rounded-lg border border-[#ced9e1] px-2 py-1 text-xs font-bold text-[#0b84d8] transition hover:bg-[#eef7fe]"
                           disabled={busy}
                           onClick={() => startEdit(e)}
                         >
@@ -1134,7 +1134,7 @@ export default function EventsPage() {
                       <span className="text-[10px]">重要</span>
                     </div>
                     <div>
-                      <strong className="block text-xl text-[#176b45]">
+                      <strong className="block text-xl text-[#0b84d8]">
                         {c.courtesy}
                       </strong>
                       <span className="text-[10px]">礼儀</span>
