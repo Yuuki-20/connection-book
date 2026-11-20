@@ -123,7 +123,7 @@ export async function GET(request: Request) {
         manager?supabase.from("members").select("id,name,role,access_role,position,status,status_reason,status_changed_at,suspended_until,joined_at,left_at,contact_email,library_access,is_active,created_at").eq("club_id",member.club_id).order("created_at"):Promise.resolve({data:[],error:null}),
         // Every member needs the organization sender status (members may send from it or be auto-CC'd). Never select the token here.
         supabase.from("organization_google_connections").select("google_email,status,connected_at").eq("club_id",member.club_id).maybeSingle(),
-        supabase.from("user_google_connections").select("google_email,status,connected_at").eq("club_id",member.club_id).eq("member_id",member.id).maybeSingle(),
+        supabase.from("user_google_connections").select("google_email,status,connected_at,scopes").eq("club_id",member.club_id).eq("member_id",member.id).maybeSingle(),
       ]);
       throwFirst(devices, templates, jobs,club,mailSettings,members,organizationGoogle,userGoogle);
       const libraryRequests=manager?await supabase.from("library_access_requests").select("id,member_id,reason,created_at").eq("club_id",member.club_id).eq("status","pending").order("created_at"):{data:[],error:null};

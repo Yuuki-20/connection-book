@@ -33,8 +33,14 @@ type LocalEvent = {
   event_contacts: Array<{ contact: { classification: string } | null }>;
 };
 
+/** オーナー個人のGoogleカレンダーの予定（オーナー本人にだけ返ってくる。灰色で表示し、押すとGoogleカレンダーで開く）。 */
+type PersonalEvent = { googleEventId: string; name: string; startsAt: string; endsAt: string | null; location: string; allDay: boolean; htmlLink: string | null };
+
 type EventsData = {
   localEvents: LocalEvent[];
+  personalEvents?: PersonalEvent[];
+  personalCalendarConnected?: boolean;
+  personalCalendarError?: string | null;
   selectedEventId: string | null;
   canManage: boolean;
 };
@@ -708,6 +714,17 @@ export default function EventsPage() {
     eventsByDate.set(key, arr);
   }
 
+  /* オーナー個人カレンダーの予定を日付ごとにまとめる */
+  const personalByDate = new Map<string, PersonalEvent[]>();
+  for (const ev of data.personalEvents ?? []) {
+    const d = new Date(/^\d{4}-\d{2}-\d{2}$/.test(ev.startsAt) ? `${ev.startsAt}T00:00:00+09:00` : ev.startsAt);
+    if (Number.isNaN(d.getTime())) continue;
+    const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+    const arr = personalByDate.get(key) ?? [];
+    arr.push(ev);
+    personalByDate.set(key, arr);
+  }
+
   const counts = (e: LocalEvent) => {
     const c = { important: 0, courtesy: 0, undecided: 0 };
     e.event_contacts.forEach((x) => {
@@ -919,6 +936,11 @@ export default function EventsPage() {
             ))}
           </div>
 
+          {data.personalCalendarConnected && (
+            <p className={`px-3 py-1.5 text-[11px] ${data.personalCalendarError ? "text-[#a13b32]" : "text-[#68746d]"}`}>
+              {data.personalCalendarError ? `個人Googleカレンダーを読み込めませんでした（${data.personalCalendarError}）` : "灰色の予定は、あなたの個人Googleカレンダーの予定です（あなたにしか見えません）。"}
+            </p>
+          )}
           {/* Calendar grid */}
           <div className="grid grid-cols-7 border-l border-[#e5e7e5]">
             {calendarDays.map((cell, idx) => {
@@ -963,6 +985,22 @@ export default function EventsPage() {
                       <span className="text-center text-[9px] font-bold text-[#68746d]">
                         +{dayEvents.length - 3}件
                       </span>
+                    )}
+                    {(personalByDate.get(key) ?? []).slice(0, 2).map((ev) => (
+                      <a
+                        key={ev.googleEventId}
+                        href={ev.htmlLink ?? undefined}
+                        target="_blank"
+                        rel="noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        title="あなたの個人Googleカレンダーの予定（あなたにしか見えません）"
+                        className="w-full rounded-md bg-[#eceeed] px-1.5 py-0.5 text-left text-[10px] leading-tight text-[#5b625e] hover:opacity-80"
+                      >
+                        <span className="line-clamp-1">{ev.name}</span>
+                      </a>
+                    ))}
+                    {(personalByDate.get(key)?.length ?? 0) > 2 && (
+                      <span className="text-center text-[9px] text-[#8a918d]">個人 +{(personalByDate.get(key)?.length ?? 0) - 2}件</span>
                     )}
                   </div>
                 </div>
