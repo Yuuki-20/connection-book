@@ -15,7 +15,7 @@ const mutationSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("complete_followup"), id: z.string().uuid(), done: z.boolean() }),
   z.object({ action: z.literal("create_followup"), contactId: z.string().uuid(), dueAt: z.string().datetime(), content: z.string().trim().min(1).max(1000) }),
   z.object({ action: z.literal("add_note"), contactId: z.string().uuid(), body: z.string().trim().min(1).max(3000) }),
-  z.object({ action: z.literal("update_contact"), id: z.string().uuid(), name: z.string().trim().min(1).max(120), company: z.string().max(200), role: z.string().max(120), email: z.string().email(), phone: z.string().max(40), address: z.string().max(400), website: z.union([z.literal(""), z.string().url()]), classification: z.enum(["important","courtesy","undecided","no_contact"]) }),
+  z.object({ action: z.literal("update_contact"), id: z.string().uuid(), name: z.string().trim().min(1).max(120), company: z.string().max(200), role: z.string().max(120), email: z.union([z.literal(""), z.string().trim().toLowerCase().email()]), phone: z.string().max(40), address: z.string().max(400), website: z.union([z.literal(""), z.string().url()]), classification: z.enum(["important","courtesy","undecided","no_contact"]) }),
   z.object({ action: z.literal("save_template"), id: z.string().uuid().optional(), name: z.string().trim().min(1).max(120), subject: z.string().trim().min(1).max(180), body: z.string().trim().min(1).max(20000), isDefault: z.boolean() }),
   z.object({ action:z.literal("delete_template"),id:z.string().uuid()}),
   z.object({ action:z.literal("delete_contact"),id:z.string().uuid()}),
@@ -217,7 +217,7 @@ export async function POST(request: Request) {
       const target = await supabase.from("contacts").select("created_by").eq("club_id", member.club_id).eq("id", input.id).maybeSingle(); throwFirst(target);
       if (!target.data) return Response.json({ error: "not_found", message: "この名刺は削除されています。" }, { status: 404 });
       if (!canEditContact(member, target.data)) return Response.json({ error: "forbidden", message: "編集できるのは、この名刺を登録した人と管理者だけです。" }, { status: 403 });
-      const result = await supabase.from("contacts").update({ name: input.name, company_name: input.company, role: input.role, email: input.email, phone: input.phone, phone_normalized: input.phone.replace(/\D/g, ""), address: input.address, website: input.website, classification: input.classification, updated_at: new Date().toISOString() }).eq("club_id", member.club_id).eq("id", input.id); throwFirst(result);
+      const result = await supabase.from("contacts").update({ name: input.name, company_name: input.company, role: input.role, email: input.email || null, phone: input.phone, phone_normalized: input.phone.replace(/\D/g, ""), address: input.address, website: input.website, classification: input.classification, updated_at: new Date().toISOString() }).eq("club_id", member.club_id).eq("id", input.id); throwFirst(result);
       await audit(supabase,member,"contact_updated","contact",input.id,{classification:input.classification});
     } else if (input.action === "save_template") {
       requireOrganizationManager(member);
