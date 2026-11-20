@@ -41,3 +41,13 @@ describe("writes on a contact require the right to view it",()=>{
     for(const file of ["src/app/api/gmail/confirmation/route.ts","src/app/api/gmail/draft/route.ts"])expect(readFileSync(join(process.cwd(),file),"utf8")).toContain("canViewContactDetails(member,contact)");
   });
 });
+
+describe("ログインコード（6桁）", () => {
+  it("組織Gmailのメールにコードを載せ、画面でコード入力できる", () => {
+    const route = readFileSync(join(process.cwd(), "src/app/api/auth/login-link/route.ts"), "utf8");
+    const page = readFileSync(join(process.cwd(), "src/app/start/page.tsx"), "utf8");
+    expect(route).toContain("email_otp");
+    expect(page).toContain("verifyOtp");
+    expect(page).toContain('type:"email"');
+  });
+});

@@ -78,6 +78,8 @@ export async function POST(request: Request) {
     const link = await supabase.auth.admin.generateLink({ type: "magiclink", email });
     if (link.error) throw link.error;
     const hashedToken = link.data.properties?.hashed_token;
+    // 同じメールに6桁のコードも載せる（リンクが別のブラウザで開いてしまうとき、アプリの画面にコードを入れてログインできる）。
+    const emailOtp = link.data.properties?.email_otp ?? "";
     if (!hashedToken) throw new Error("magic link was not generated");
 
     const origin = new URL(request.url).origin;
@@ -91,13 +93,14 @@ export async function POST(request: Request) {
       await sendGmail({
         from: connection.data.google_email,
         to: email,
-        subject: "【つながり帳】ログイン用リンク",
+        subject: "【つながり帳】ログイン用リンク・コード",
         body: [
           "つながり帳のログイン用リンクです。下のリンクを開くとログインできます。",
           "",
           url,
           "",
-          "このリンクは1回だけ使えます。有効期限は1時間です。",
+          ...(emailOtp ? [`リンクを開く代わりに、つながり帳の画面にこのコードを入力してもログインできます：${emailOtp}`, ""] : []),
+          "このリンク・コードは1回だけ使えます。有効期限は1時間です。",
           "心当たりがない場合は、このメールを無視してください。",
         ].join("\n"),
         refreshToken: decryptGoogleToken(connection.data.encrypted_refresh_token),
