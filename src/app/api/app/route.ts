@@ -61,7 +61,7 @@ export async function GET(request: Request) {
         supabase.from("followups").select("id",{count:"exact",head:true}).eq("club_id", member.club_id).eq("status", "open").gte("due_at", today.toISOString()).lt("due_at",tomorrow.toISOString()),
         supabase.from("followups").select("id",{count:"exact",head:true}).eq("club_id",member.club_id).eq("status","open").gte("due_at",tomorrow.toISOString()).lt("due_at",weekEnd.toISOString()),
         supabase.from("followups").select("id",{count:"exact",head:true}).eq("club_id",member.club_id).eq("status","open").lt("due_at",today.toISOString()),
-        member.selected_event_id ? supabase.from("events").select("id,name").eq("club_id",member.club_id).eq("id",member.selected_event_id).maybeSingle() : supabase.from("events").select("id,name").eq("club_id", member.club_id).eq("is_current", true).maybeSingle(),
+        member.selected_event_id ? supabase.from("events").select("id,name,starts_at").eq("club_id",member.club_id).eq("id",member.selected_event_id).maybeSingle() : supabase.from("events").select("id,name,starts_at").eq("club_id", member.club_id).eq("is_current", true).maybeSingle(),
       ]);
       throwFirst(contacts, important, undecided, followups,week,overdue,event);
       return Response.json({ member, currentEvent: event.data, recentContacts: contacts.data ?? [], tasks: { important: important.count ?? 0, undecided: undecided.count ?? 0, today: followups.count??0,week:week.count??0,overdue:overdue.count??0 } });
