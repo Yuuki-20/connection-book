@@ -60,7 +60,12 @@ export function CaptureWizard(props: { captureMode?: "quick" | "important" | "co
   const [duplicates, setDuplicates] = useState<DuplicateCandidate[]>([]);
   // How to handle a card for someone already in the library: merge into an existing contact, or register as a different person.
   const [mergeChoice, setMergeChoice] = useState<{targetContactId:string;mode:MergeMode}|"new"|null>(null);
-  const context = useAppData<{member:{signature:string};currentEvent:{id:string;name:string}|null}>("/api/app?view=dashboard");
+  const context = useAppData<{member:{signature:string};currentEvent:{id:string;name:string;starts_at?:string|null}|null}>("/api/app?view=dashboard");
+  // 「今のイベント」の付け間違いを防ぐ。イベントの日付が今日から1日より離れていたら、撮る前に1回確認する。
+  const [eventDecision, setEventDecision] = useState<"pending" | "use" | "none">("pending");
+  const currentEvent = context.data?.currentEvent ?? null;
+  const eventIsStale = Boolean(currentEvent && isEventStale(currentEvent.starts_at));
+  const effectiveEventId = eventDecision === "none" ? null : currentEvent?.id ?? null;
   const settings = useAppData<{member:{access_role:AccessRole;signature:string};sender:SenderStatus;senderChoices:{organization_email:SenderStatus;personal_email:SenderStatus}|null;mailSettings:MailSettings;organizationGoogle:{google_email:string;status:string}|null;userGoogle:{google_email:string;status:string}|null;templates:Array<{id:string;name:string;default_subject:string;default_body:string;is_default:boolean}>}>("/api/app?view=settings");
 
   useEffect(() => {
@@ -202,7 +207,7 @@ export function CaptureWizard(props: { captureMode?: "quick" | "important" | "co
   async function persistContact() {
     if(!ocrImage)throw new Error("名刺画像がありません。撮影からやり直してください。");
     const form=new FormData();const file=new File([ocrImage],`business-card-${Date.now()}.jpg`,{type:ocrImage.type||"image/jpeg"});
-    form.set("image",file);form.set("metadata",JSON.stringify({contact,classification,eventId:context.data?.currentEvent?.id??null,rawText,ocrCorrected:emailCandidates.some(x=>x.source==="corrected"),imageSha256:await sha256Hex(ocrImage),quickMode,merge:mergeChoice&&mergeChoice!=="new"?mergeChoice:null}));
+    form.set("image",file);form.set("metadata",JSON.stringify({contact,classification,eventId:effectiveEventId,rawText,ocrCorrected:emailCandidates.some(x=>x.source==="corrected"),imageSha256:await sha256Hex(ocrImage),quickMode,merge:mergeChoice&&mergeChoice!=="new"?mergeChoice:null}));
     const result=await appFetch<{contactId:string;contact?:{email:string|null;classification:string}|null;statuses:{drive:string;people:string}}>("/api/contacts/register",{method:"POST",body:form});
     if (ocrBaseline) {
       try {
@@ -272,7 +277,8 @@ export function CaptureWizard(props: { captureMode?: "quick" | "important" | "co
     {quickMode ? <QuickSteps step={step}/> : <Steps step={step}/>}
     {step === "verify" && usedNewOcr && <p className="mb-3 text-xs text-[#687076]">AI（Gemini{ocrNote ? `・${ocrNote}` : ""}）で読み取りました</p>}
     {step === "verify" && !usedNewOcr && ocrNote && <p className="mb-3 text-xs text-[#9a3b2f]">{ocrNote}</p>}
-    {step === "capture" && <CaptureStep progress={ocrProgress} error={error} onFile={onFile} quickMode={quickMode}/>}
+    {step === "capture" && currentEvent && <EventCheck event={currentEvent} stale={eventIsStale} decision={eventDecision} onDecide={setEventDecision}/>}
+    {step === "capture" && !(currentEvent && eventIsStale && eventDecision === "pending") && <CaptureStep progress={ocrProgress} error={error} onFile={onFile} quickMode={quickMode}/>}
     {step === "verify" && (quickMode
       ? <QuickVerifyStep
           contact={contact} setContact={setContact} image={image} rawText={rawText} debugOcr={debugOcr}
@@ -304,6 +310,21 @@ function Header({ classification, quickMode }: { classification: Exclude<Classif
 
 function QuickSteps({ step }: { step: Step }) { const current = ["capture", "verify", "done"].indexOf(step === "duplicate" ? "verify" : step === "mail" ? "done" : step); return <ol className="mb-6 grid grid-cols-3 gap-2 text-center text-[11px] font-bold text-[#7b8287]">{["1 撮影", "2 確認", "3 完了"].map((label, index) => <li key={label} className={`border-b-4 pb-2 ${current >= index ? "border-[#4338ca] text-[#4338ca]" : "border-[#dbe1e5]"}`}>{label}</li>)}</ol>; }
 function Steps({ step }: { step: Step }) { const current = ["capture", "verify", "duplicate", "mail", "done"].indexOf(step); return <ol className="mb-6 grid grid-cols-4 gap-2 text-center text-[11px] font-bold text-[#7b8287]">{["1 撮影", "2 内容確認", "3 重複確認", "4 処理確定"].map((label, index) => <li key={label} className={`border-b-4 pb-2 ${current >= index ? "border-[#0b84d8] text-[#0b84d8]" : "border-[#dbe1e5]"}`}>{label}</li>)}</ol>; }
+
+/** イベントの日付が今日から1日より離れているか（日付が無いものは確認しない）。 */
+export function isEventStale(startsAt?: string | null, now = new Date()) {
+  if (!startsAt) return false;
+  const start = new Date(startsAt).getTime();
+  if (Number.isNaN(start)) return false;
+  return Math.abs(now.getTime() - start) > 36 * 60 * 60 * 1000;
+}
+
+function EventCheck({ event, stale, decision, onDecide }: { event: { name: string; starts_at?: string | null }; stale: boolean; decision: "pending" | "use" | "none"; onDecide: (value: "use" | "none") => void }) {
+  const date = event.starts_at ? new Intl.DateTimeFormat("ja-JP", { month: "numeric", day: "numeric" }).format(new Date(event.starts_at)) : "";
+  if (decision === "none") return <p className="mb-3 rounded-xl border bg-white p-3 text-sm">この名刺は<strong>イベントなし</strong>で記録します。<button type="button" className="ml-2 font-bold text-[#0b84d8] underline" onClick={() => onDecide("use")}>「{event.name}」に戻す</button></p>;
+  if (!stale || decision === "use") return <p className="mb-3 rounded-xl border bg-white p-3 text-sm">この名刺は「<strong>{event.name}</strong>{date ? `（${date}）` : ""}」で会った人として記録します。<button type="button" className="ml-2 font-bold text-[#0b84d8] underline" onClick={() => onDecide("none")}>イベントなしにする</button></p>;
+  return <section className="card mb-3 border-2 border-[#e8c98a] bg-[#fff8e6] p-5"><p className="text-sm font-black text-[#7a5200]">今のイベントは「{event.name}」{date ? `（${date}）` : ""}のままです。この名刺は、このイベントで会った人ですか？</p><div className="mt-3 flex flex-col gap-2 sm:flex-row"><button type="button" className="btn-primary" onClick={() => onDecide("use")}>はい、このイベント</button><button type="button" className="btn-secondary" onClick={() => onDecide("none")}>いいえ、イベントなしで記録</button><Link href="/events" className="btn-secondary">イベントを選び直す</Link></div></section>;
+}
 
 function CaptureStep({ progress, error, onFile, quickMode }: { progress?: number; error: string; onFile: (event: ChangeEvent<HTMLInputElement>) => void; quickMode: boolean }) {
   return <section className="card overflow-hidden p-5 md:p-8"><div className="rounded-[18px] border-2 border-dashed border-[#b8c3ca] bg-[#f4f8f5] p-8 text-center"><span className="mx-auto grid size-16 place-items-center rounded-2xl bg-white text-[#0b84d8] shadow-sm">{quickMode ? <Zap size={30}/> : <Camera size={30}/>}</span><h2 className="mt-4 text-xl font-black">{quickMode ? "パシャっと撮るだけ" : "名刺を1枚だけ撮影"}</h2><p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-[#687076]">{quickMode ? "名刺全体を撮影してください。分類やメール送信は後から処理できます。" : "名刺全体が入るように撮影してください。結果は必ず次の画面で確認します。"}</p><div className="mt-6 flex flex-col justify-center gap-2 sm:flex-row"><label className="btn-primary w-full sm:w-auto"><Camera size={19}/>カメラを起動<input className="sr-only" type="file" accept="image/*" capture="environment" multiple={false} onChange={onFile}/></label><label className="btn-secondary w-full sm:w-auto"><ScanSearch size={19}/>写真から選ぶ<input className="sr-only" type="file" accept="image/*" multiple={false} onChange={onFile}/></label></div>{progress !== undefined && <Progress value={progress}/>}</div>{error && <ErrorMessage>{error}</ErrorMessage>}<div className="mt-4 flex gap-3 rounded-xl bg-[#fff5dd] p-3 text-xs leading-5 text-[#795514]"><ShieldCheck className="mt-0.5 shrink-0" size={18}/><p>{quickMode ? <><strong>あとから処理できます。</strong><br/>分類・メール送信は人物詳細から行えます。</> : <><strong>一括処理はできません。</strong><br/>1回につき、名刺1枚・人物1人・送信先1件です。</>}</p></div></section>;
